@@ -1,14 +1,23 @@
 package ParserCombinator;
 
 class Stream {
-    String string;
-    int cursor = 0;
-    int length;
+    private String string;
+    private int cursor = 0;
+    private int length;
 
     Stream(String s, int c, int l) {
         string = s;
         cursor = c;
         length = l;
+    }
+    Stream(String s) {
+        string = s;
+        cursor = 0;
+        length = s.length();
+    }
+
+    int length() {
+        return length;
     }
 
     String head() {
