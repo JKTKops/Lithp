@@ -1,6 +1,8 @@
 package ParserCombinator;
 import ParserCombinator.Result.*;
 
+import java.util.function.Supplier;
+
 abstract class Combinators {
     static Parser alternate(Parser... list) {
         return new Parser(stream -> {
@@ -62,37 +64,41 @@ abstract class Combinators {
                 parser.run(stream)
                 .fold(
                     (value, s) -> star(parser).map(rest -> value + rest).run(s),
-                    (value, s) -> new Failure("'Plus' parser failed.", stream)));
+                    (value, s) -> new Failure("'Plus' parser failed: " + value, stream)));
     }
 
-    static Parser string(String str) {
+    static Parser string(final String str) {
         if (str.length() == 0) {
             return always("");
         }
         Parser first = accept(str.charAt(0));
-        str = str.substring(1);
-        Parser[] list = new Parser[str.length()];
-        for (int i = 0; i < str.length(); i++) {
-            list[i] = accept(str.charAt(i));
+        String restStr = str.substring(1);
+        Parser[] list = new Parser[restStr.length()];
+        for (int i = 0; i < restStr.length(); i++) {
+            list[i] = accept(restStr.charAt(i));
         }
 
-        return sequence(first, list);
+        return sequence(first, list).bimap(
+                v -> v,
+                e -> "Failed to match \"" + str + "\": " + e
+        );
     }
 
-    static Parser not(Parser parser) {
-        return new Parser(stream -> parser.run(stream).fold(
-                (value, s) -> new Failure("'Not' parser failed", stream),
-                (value, s) ->
-                        stream.length() > 0
-                        ? new Success(stream.head(), stream.move(1))
-                        : new Failure("unexpected eof", stream)));
+    static Parser set(final String charSet) {
+        if (charSet.length() == 0) {
+            return never("'set' failed: empty set");
+        }
+        Parser[] list = new Parser[charSet.length()];
+        for (int i = 0; i < charSet.length(); i++) {
+            list[i] = accept(charSet.charAt(i));
+        }
+        return alternate(list).bimap(
+                v -> v,
+                e -> "Failed to match character set \"" + charSet + "\": " + e
+        );
     }
 
-    static Parser eof() {
-        return new Parser(stream -> stream.length() == 0 ? new Success("$", stream) : new Failure("'eof' failed.", stream));
-    }
-
-    static Parser accept() {
+    static Parser dot() {
         return new Parser(stream -> {
             if (stream.length() == 0) {
                 return new Failure("unexpected EOF", stream);
@@ -100,6 +106,16 @@ abstract class Combinators {
             return new Success(stream.head(), stream.move(1));
         });
     }
+
+    static Parser not(Parser parser) {
+        return new Parser(stream -> parser.run(stream).fold(
+                (value, s) -> new Failure("'Not' parser failed", stream),
+                (value, s) ->
+                        stream.length() > 0
+                                ? new Success(stream.head(), stream.move(1))
+                                : new Failure("unexpected eof", stream)));
+    }
+
     static Parser accept(char c) {
         return new Parser(stream -> {
             if (stream.length() == 0) {
@@ -111,5 +127,13 @@ abstract class Combinators {
             }
             return new Failure("\"" + value + "\" did not match \"" + c + "\"", stream);
         });
+    }
+
+    static Parser eof() {
+        return new Parser(stream -> stream.length() == 0 ? new Success("", stream) : new Failure("'eof' failed.", stream));
+    }
+
+    static Parser delayed(Supplier<Parser> parserSupplier) {
+        return new Parser(stream -> parserSupplier.get().run(stream));
     }
 }
