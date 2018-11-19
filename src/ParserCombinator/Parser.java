@@ -5,7 +5,14 @@ import java.util.function.Function;
 import ParserCombinator.Result.Failure;
 
 class Parser {
-    Function<Stream, Result> parse;
+    static Result run(Parser p, Object i) {
+        return p.run(i).fold(
+                v -> System.out.println("success: " + v),
+                e -> System.out.println("error: " + e)
+        );
+    }
+
+    private Function<Stream, Result> parse;
 
     Parser(Function<Stream, Result> setParse) {
         parse = setParse;
