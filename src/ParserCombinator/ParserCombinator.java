@@ -16,7 +16,7 @@ public class ParserCombinator {
         // Note that this grammar is not all that similar to one that this combinator
         // would generate. It is optimized to build a direct AST rather than a
         // parse tree through use of .ignore() to remove syntax sugar of the BNF
-        //
+        // as well as skipping all redundant single-child chains.
         final Map<String, Parser> initParsers = new HashMap<>();
         Parser digit = set("0123456789");
         Parser letter = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
