@@ -12,7 +12,7 @@ class Parser {
         );
     }
 
-    private Function<Stream, Result> parse;
+    protected Function<Stream, Result> parse;
 
     Parser(Function<Stream, Result> setParse) {
         parse = setParse;

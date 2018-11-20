@@ -6,13 +6,16 @@ import java.util.function.Supplier;
 abstract class Combinators {
     static Parser alternate(Parser... list) {
         return new Parser(stream -> {
+            String e = "";
             for (Parser parser : list) {
                 Result result = parser.run(stream);
                 if (result instanceof Success) {
                     return result;
+                } else if (result instanceof Failure) {
+                    e += "; " + result.value;
                 }
             }
-            return new Failure("Alternation failed", stream);
+            return new Failure(e.substring(2), stream);
         });
     }
 
@@ -94,7 +97,7 @@ abstract class Combinators {
         }
         return alternate(list).bimap(
                 v -> v,
-                e -> "Failed to match character set \"" + charSet + "\": " + e
+                e -> "Failed to match character set \"" + charSet + "\""
         );
     }
 
@@ -113,7 +116,7 @@ abstract class Combinators {
                 (value, s) ->
                         stream.length() > 0
                                 ? new Success(stream.head(), stream.move(1))
-                                : new Failure("unexpected eof", stream)));
+                                : new Success("", stream)));
     }
 
     static Parser accept(char c) {
