@@ -11,7 +11,7 @@ public class ParserCombinator {
     private Map<String, Parser> parsers = new HashMap<>();
 
     public ParserCombinator(String grammar) {
-        ParseTree parsedGrammar = new ParseTree("syntax");
+        ParseTree parsedGrammar = new ParseTree();
 
         // Note that this grammar is not all that similar to one that this combinator
         // would generate. It is optimized to build a direct AST rather than a
@@ -44,13 +44,18 @@ public class ParserCombinator {
                 opt_whitespace, string("::=").literal().sibling(),
                 opt_whitespace, expr.sibling(),
                 line_end).parent("rule");
-        Parser syntax = plus(rule).parent("syntax");
+        Parser syntax = concat(rule, star(rule.sibling())).parent("syntax");
 
         Parser.run(term, "\"test\"");
         Parser.run(expr, "<this-is-a-rule-name> <also-a-rule> | <alternative-rule-1> '?' <alternative-rule-2>");
         Parser.run(rule, "<rule> ::= \"goes to\" <production-1> | <production-2>");
         Parser.run(syntax, "<first-rule> ::= <first-production>  \n  <second-rule> ::= <second-production>");
+
+        System.out.println(new ParseTree().buildTree(syntax.run("<first-rule> ::= <first-production>  \n  <second-rule> ::= <second-production>")));
+        System.out.println(new ParseTree().buildTree(syntax.run("first-rule ::= \"literal\"")));
     }
+
+
 
     public static void main(String[] args) {
         ParserCombinator test = new ParserCombinator("");

@@ -12,6 +12,12 @@ class Symbol {
         return type;
     }
 
+    void assertValue(String e) {
+        if (type != SymbolType.VALUE) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Override
     public String toString() {
         switch(type) {
