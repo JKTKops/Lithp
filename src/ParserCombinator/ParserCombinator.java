@@ -18,20 +18,16 @@ public class ParserCombinator {
         // parse tree through use of .ignore() to remove syntax sugar of the BNF
         // as well as skipping all redundant single-child chains.
         // Based on the BNF grammar on the BNF wikipedia page.
-        final Map<String, Parser> initParsers = new HashMap<>();
         Parser digit = set("0123456789");
         Parser letter = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
         Parser symbol = set("| !#$%&()*+,-./:;>=<?@[\\]^_`{}~");
         Parser character = alternate(letter, digit, symbol);
         Parser character1 = alternate(character, accept('\''));
         Parser character2 = alternate(character, accept('"'));
-        Parser text1 = alternate(concat(character1, delayed(() -> initParsers.get("text1"))), always(""));
-        Parser text2 = alternate(concat(character2, delayed(() -> initParsers.get("text2"))), always(""));
-        initParsers.put("text1", text1);
-        initParsers.put("text2", text2);
+        Parser text1 = star(character1);
+        Parser text2 = star(character2);
         Parser rule_char = alternate(letter, digit, accept('-'));
-        Parser opt_whitespace = alternate(concat(accept(' '), delayed(() -> initParsers.get("opt-space"))), always("")).ignore();
-        initParsers.put("opt-space", opt_whitespace);
+        Parser opt_whitespace = star(accept(' ')).ignore();
         Parser line_end = concat(opt_whitespace, alternate(string("\n"), string(System.lineSeparator()), eof())).ignore();
 
         Parser literal = alternate(sequence(accept('"').ignore(), text1, accept('"').ignore()),
