@@ -1,12 +1,16 @@
 package ParserCombinator;
 
 class Symbol {
-    private enum SymbolType {CHILD_MARKER, SIBLING_MARKER, PARENT_MARKER, VALUE};
+    enum SymbolType {CHILD_MARKER, SIBLING_MARKER, PARENT_MARKER, VALUE};
 
     private SymbolType type;
     private String value;
 
     private Symbol() {}
+
+    SymbolType getType() {
+        return type;
+    }
 
     @Override
     public String toString() {
