@@ -20,6 +20,11 @@ class Stream {
         return length;
     }
 
+    @Override
+    public String toString() {
+        return string.substring(cursor, cursor + length);
+    }
+
     String head() {
         if (length <= 0) { throw new IllegalStateException("Stream is empty."); }
         return ((Character) string.charAt(cursor)).toString();
