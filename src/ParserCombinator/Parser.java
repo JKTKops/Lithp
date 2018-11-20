@@ -26,9 +26,7 @@ class Parser {
         } else if (input instanceof String) {
             return parse.apply(new Stream((String) input));
         }
-        List<Symbol> error = new ArrayList<>();
-        error.add(Symbol.value("invalid input to parser"));
-        return new Failure(error, new Stream(""));
+        return new Failure(Symbol.value("invalid input to parser"), new Stream(""));
     }
 
     Parser parent(String nonterminal) {

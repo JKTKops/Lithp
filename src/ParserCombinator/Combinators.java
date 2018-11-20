@@ -50,33 +50,29 @@ abstract class Combinators {
                 (v, s) -> new Success(v, s),
                 // If the parse fails, return a Success with empty value
                 // that does NOT consume any of the input stream
-                (v, s) -> new Success(new ArrayList<>(), stream)
+                (e, s) -> new Success(new ArrayList<>(), stream)
         ));
     }
 
     static Parser lookahead(Parser parser) {
         return new Parser(stream -> parser.run(stream).fold(
                 (v, s) -> new Success(new ArrayList<>(), stream),
-                (v, s) -> new Failure(v, stream)));
+                (e, s) -> new Failure(e, stream)));
     }
 
     static Parser star(Parser parser) {
-        return new Parser(stream ->
-                parser.run(stream)
-                .fold(
-                    (value, s) -> star(parser).map(rest -> {value.addAll(rest); return value; }).run(s),
-                    (value, s) -> new Success(new ArrayList<>(), stream)));
+        return new Parser(stream -> parser.run(stream).fold(
+                (value, s) -> star(parser).map(rest -> {value.addAll(rest); return value; }).run(s),
+                (error, s) -> new Success(new ArrayList<>(), stream)));
     }
 
     static Parser plus(Parser parser) {
-        return new Parser(stream ->
-                parser.run(stream)
-                .fold(
-                    (value, s) -> star(parser).map(rest -> { value.addAll(rest); return value; }).run(s),
-                    (error, s) -> {
-                        error.add(0, Symbol.value("'Plus' parser failed:"));
-                        return new Failure(error, stream);
-                    }));
+        return new Parser(stream -> parser.run(stream).fold(
+                (value, s) -> star(parser).map(rest -> { value.addAll(rest); return value; }).run(s),
+                (error, s) -> {
+                    error.add(0, Symbol.value("'Plus' parser failed:"));
+                    return new Failure(error, stream);
+                }));
     }
 
     static Parser string(final String str) {
@@ -126,7 +122,7 @@ abstract class Combinators {
         return new Parser(stream -> parser.run(stream).fold(
                 (value, s) -> { value.add(0, Symbol.value("'Not' parser failed; matched:"));
                                 return new Failure(value, stream); },
-                (value, s) -> stream.length() > 0
+                (error, s) -> stream.length() > 0
                                 ? new Success(Symbol.value(stream.head()), stream.move(1))
                                 : new Success(new ArrayList<>(), stream)));
     }

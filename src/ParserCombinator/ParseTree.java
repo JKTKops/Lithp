@@ -11,6 +11,11 @@ class ParseTree {
         return root;
     }
 
+    /**
+     * This toString() method  adapted from this StackOverflow answer:
+     * https://stackoverflow.com/a/1649223
+     * @return A string representation of this ParseTree.
+     */
     @Override
     public String toString() {
         return toString(root, "", true);
