@@ -32,29 +32,27 @@ class Parser {
     Parser parent(String nonterminal) {
         return new Parser(stream -> parse.apply(stream).map(list -> {
             list.add(0, Symbol.childMarker());
-            list.add(0, Symbol.value(nonterminal));
+            list.add(0, Symbol.nonterminal(nonterminal));
             list.add(Symbol.parentMarker());
             return list;
         }));
     }
-    Parser sibling() {
-        return new Parser(stream -> parse.apply(stream).map(list -> {
-            list.add(0, Symbol.siblingMarker());
-            return list;
-        }));
-    }
     Parser literal() {
-        return new Parser(stream -> parse.apply(stream)).collapse().map(list -> {
+        return new Parser(stream -> parse.apply(stream)).collapse()/*.map(list -> {
             if (list.size() != 1) { throw new IllegalStateException("Literals can only have one element."); }
             if (list.get(0).getType() != Symbol.SymbolType.VALUE) { throw new IllegalStateException("Literals can only be values."); }
             list.set(0, Symbol.value("'" + list.get(0).toString() + "'"));
             return list;
-        });
+        })*/;
     }
     Parser collapse() {
         return new Parser(stream -> parse.apply(stream).map(list -> {
             List<Symbol> collapsed = new ArrayList<>();
-            collapsed.add(Symbol.value(list.stream().map(symbol -> symbol.toString()).reduce("", (a, b) -> a + b)));
+            collapsed.add(Symbol.value(list.stream().map(symbol ->
+                    symbol.getType() == Symbol.SymbolType.VALUE
+                            ? symbol.getValue()
+                            : ""
+            ).reduce("", (a, b) -> a + b)));
             return collapsed;
         }));
     }

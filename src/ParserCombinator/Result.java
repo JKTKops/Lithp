@@ -21,6 +21,11 @@ abstract class Result {
         rest = r;
     }
 
+    @Override
+    public String toString() {
+        return value.toString();
+    }
+
     abstract Result map(Function<List<Symbol>, List<Symbol>> fn);
     abstract Result bimap(Function<List<Symbol>, List<Symbol>> success, Function<List<Symbol>, List<Symbol>> failure);
     abstract Result chain(BiFunction<List<Symbol>, Stream, Result> fn);

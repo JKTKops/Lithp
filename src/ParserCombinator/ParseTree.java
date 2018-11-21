@@ -25,13 +25,12 @@ class ParseTree {
                 case CHILD_MARKER:
                     next = symbols.remove(0);
                     next.assertValue("Child marker not followed by value.");
-                    current = current.addChild(next.toString());
+                    current = current.addChild(next);
                     break;
-                case VALUE: // if loose value, we'll assume it was supposed to be a sibling.
-                case SIBLING_MARKER:
-                    next = symbols.remove(0);
+                case NONTERMINAL: // loose Symbols are siblings
+                case VALUE:
                     next.assertValue("Sibling marker not followed by value.");
-                    current = current.addSibling(next.toString());
+                    current = current.addSibling(next);
                     break;
                 case PARENT_MARKER:
                     current = current.parent;
@@ -95,13 +94,14 @@ class ParseTree {
             return ret;
         }
 
-        Node addChild(String v) {
+        Node addChild(Symbol symbol) {
             if (this instanceof Terminal) {
                 throw new IllegalStateException("Can't add child to a terminal.");
             }
             Node toAdd;
-            if (v.matches("'.*'")) {
-                toAdd = new Terminal(v.substring(1, v.length() - 1), this);
+            String v = symbol.getValue();
+            if (symbol.getType() == Symbol.SymbolType.VALUE) {
+                toAdd = new Terminal(v, this);
             } else {
                 toAdd = new Nonterminal(v, this);
             }
@@ -117,14 +117,14 @@ class ParseTree {
             return current.sibling;
         }
 
-        Node addSibling(String v) {
+        Node addSibling(Symbol symbol) {
             Node current = this;
             while (current.sibling != null) {
                 current = current.sibling;
             }
-
-            if (v.matches("'.*'")) {
-                current.sibling = new Terminal(v.substring(1, v.length() - 1), this.parent);
+            String v = symbol.getValue();
+            if (symbol.getType() == Symbol.SymbolType.VALUE) {
+                current.sibling = new Terminal(v, this.parent);
             } else {
                 current.sibling = new Nonterminal(v, this.parent);
             }

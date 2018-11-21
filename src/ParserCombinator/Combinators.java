@@ -92,7 +92,7 @@ abstract class Combinators {
                     e.add(0, Symbol.value("Failed to match \"" + str + "\":"));
                     return e;
                 }
-        );
+        ).literal();
     }
 
     static Parser set(final String charSet) {

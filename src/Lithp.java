@@ -1,5 +1,11 @@
 import java.util.Scanner;
 
+/**
+ * Main class of the Lithp interpreter.
+ * Handles the REPL.
+ *
+ * @author Max Kopinsky
+ */
 public class Lithp {
     private static String input;
 

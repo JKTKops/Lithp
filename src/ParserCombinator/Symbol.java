@@ -1,7 +1,7 @@
 package ParserCombinator;
 
 class Symbol {
-    enum SymbolType {CHILD_MARKER, SIBLING_MARKER, PARENT_MARKER, VALUE};
+    enum SymbolType {CHILD_MARKER, PARENT_MARKER, NONTERMINAL, VALUE}
 
     private SymbolType type;
     private String value;
@@ -12,8 +12,12 @@ class Symbol {
         return type;
     }
 
+    String getValue() {
+        return value;
+    }
+
     void assertValue(String e) {
-        if (type != SymbolType.VALUE) {
+        if (!(type == SymbolType.VALUE || type == SymbolType.NONTERMINAL)) {
             throw new IllegalStateException(e);
         }
     }
@@ -22,8 +26,8 @@ class Symbol {
     public String toString() {
         switch(type) {
             case CHILD_MARKER: return "(";
-            case SIBLING_MARKER: return "-";
             case PARENT_MARKER: return ")";
+            case NONTERMINAL:
             case VALUE: return value;
         }
         return "UntypedSymbol";
@@ -35,15 +39,16 @@ class Symbol {
         return ret;
     }
 
-    static Symbol siblingMarker() {
-        Symbol ret = new Symbol();
-        ret.type = SymbolType.SIBLING_MARKER;
-        return ret;
-    }
-
     static Symbol parentMarker() {
         Symbol ret = new Symbol();
         ret.type = SymbolType.PARENT_MARKER;
+        return ret;
+    }
+
+    static Symbol nonterminal(String v) {
+        Symbol ret = new Symbol();
+        ret.type = SymbolType.NONTERMINAL;
+        ret.value = v;
         return ret;
     }
 
