@@ -38,6 +38,7 @@ public class ParseTree {
             root = new Terminal("The parser failed with error: " + input.value.stream().map(
                     symbol -> symbol.toString()).reduce(
                             "", (a, b) -> a + (a.equals("") || a.endsWith(": ") ? "" : ", ") + b), null);
+            return;
         }
         successful = true;
         List<Symbol> symbols = new ArrayList<>(input.value); // Don't destroy the input list

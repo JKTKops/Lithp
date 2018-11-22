@@ -2,10 +2,10 @@ package ParserCombinator;
 import ParserCombinator.Result.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A utility class containing several higher order functions.
@@ -218,7 +218,7 @@ abstract class Combinators {
      */
     static Parser dot() {
         return new Parser(stream -> stream.length() == 0
-                                    ? new Failure(Symbol.value("unexpected EOL"), stream)
+                                    ? new Failure(Symbol.value("unexpected EOF"), stream)
                                     : new Success(Symbol.value(stream.head()), stream.move(1)));
     }
 
@@ -241,7 +241,7 @@ abstract class Combinators {
 
     /**
      * Parser supplier that returns a Parser which matches only the given character.
-     * This is the only Parser supplier that produces a consuming Parser.
+     * This and regex are the only Parser suppliers that produce consuming Parsers.
      *
      * @param c The character the output Parser should match.
      * @return A Parser that matches only the given character.
@@ -249,13 +249,29 @@ abstract class Combinators {
     static Parser accept(char c) {
         return new Parser(stream -> {
             if (stream.length() == 0) {
-                return new Failure(Symbol.value("unexpected EOL"), stream);
+                return new Failure(Symbol.value("unexpected EOF"), stream);
             }
             String value = stream.head();
             if (value.equals(((Character) c).toString())) {
                 return new Success(Symbol.value(value), stream.move(1));
             }
             return new Failure(Symbol.value("\"" + value + "\" did not match \"" + c + "\""), stream);
+        });
+    }
+
+    /**
+     * A Parser supplier that returns a Parser that matches the given regex.
+     * This and accept are the only Parser suppliers that produce consuming Parsers.
+     * @param regex The regex this Parser should match.
+     * @return A Parser that matches the given regex.
+     */
+    static Parser regex(String regex) {
+        return new Parser(stream -> {
+            Matcher matcher = Pattern.compile("^"+ regex).matcher(stream.toString());
+            if (matcher.find()) {
+                return new Success(Symbol.value(matcher.group().replaceAll("\\\\/", "/")), stream.move(matcher.group().length()));
+            }
+            return new Failure(Symbol.value("Failed to match regex: " + regex), stream);
         });
     }
 
