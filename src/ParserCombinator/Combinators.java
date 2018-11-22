@@ -236,7 +236,15 @@ abstract class Combinators {
                                 return new Failure(value, stream); },
                 (error, s) -> stream.length() > 0
                                 ? new Success(Symbol.value(stream.head()), stream.move(1))
-                                : new Success(new ArrayList<>(), stream)));
+                                : new Failure(Symbol.value("'Not' parser failed; empty stream"), stream)));
+    }
+
+    static Parser nonConsumingNot(Parser parser) {
+        return new Parser(stream -> parser.run(stream).fold(
+                (value, s) -> {
+                    value.add(0, Symbol.value("Non-consuming Not parser failed; matched: "));
+                    return new Failure(value, stream); },
+                (error, s) -> new Success(new ArrayList<>(), s)));
     }
 
     /**
@@ -284,7 +292,7 @@ abstract class Combinators {
     static Parser eof() {
         return new Parser(stream -> stream.length() == 0
                 ? new Success(new ArrayList<>(), stream)
-                : new Failure(Symbol.value("'eof' failed."), stream));
+                : new Failure(Symbol.value("'eof' failed: "), stream));
     }
 
     /**

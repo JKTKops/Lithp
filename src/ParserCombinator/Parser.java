@@ -18,15 +18,14 @@ import ParserCombinator.Result.Failure;
  */
 class Parser {
     /**
-     * Class method which runs a given parser and folds its result into a useful printed message.
+     * Class method which runs a given parser and folds its Result into a useful printed message.
      * @param p The parser to run.
      * @param i The input to run the parser on. This should be a String or a Stream.
-     * @return The Result of the parser, for convenience.
      */
-    static Result run(Parser p, Object i) {
-        return p.run(i).fold(
-                v -> System.out.println("success: " + v),
-                e -> System.out.println("error: " + e)
+    static void run(Parser p, Object i) {
+        p.run(i).fold(
+                s -> System.out.println("success: " + s.value + "\nUnparsed stream: " + s.rest),
+                f -> System.out.println("error: " + f.value + "\nUnparsed stream: " + f.rest)
         );
     }
 

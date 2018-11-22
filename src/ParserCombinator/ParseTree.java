@@ -1,6 +1,7 @@
 package ParserCombinator;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -37,7 +38,8 @@ public class ParseTree {
             successful = false;
             root = new Terminal("The parser failed with error: " + input.value.stream().map(
                     symbol -> symbol.toString()).reduce(
-                            "", (a, b) -> a + (a.equals("") || a.endsWith(": ") ? "" : ", ") + b), null);
+                            "", (a, b) -> a + (a.equals("") || a.endsWith(": ") ? "" : ", ") + b)
+                    + "\nUnparsed grammar:\n" + input.rest, null);
             return;
         }
         successful = true;
@@ -125,7 +127,7 @@ public class ParseTree {
      *
      * Nodes can be Terminal or Nonterminal. A Node should be a leaf node if and only if it is Terminal.
      */
-    abstract class Node {
+    abstract class Node implements Iterable<Node> {
         private String value;
         private Node parent;
         private Node child;
@@ -139,6 +141,15 @@ public class ParseTree {
         Node(String v, Node p) {
             value = v;
             parent = p;
+        }
+
+        /**
+         * Convenience method for ParserCombinator that returns an iterator over this Node's children.
+         * @return An iterator over this Node's children.
+         */
+        @Override
+        public Iterator<Node> iterator() {
+            return getChildren().stream().iterator();
         }
 
         /**
@@ -161,6 +172,24 @@ public class ParseTree {
                 ret.add(current);
             }
             return ret;
+        }
+        /**
+         * Convenience method for ParserCombinator. Gets the leftmost child of this Node.
+         * @return The leftmost child of this Node.
+         */
+        Node getChild() {
+            return child;
+        }
+        /**
+         * Convenience method for ParserCombinator. Gets the nth child from the left of this Node.
+         * @return The nth child of this Node from the left.
+         */
+        Node getChild(int n) {
+            Node current = child;
+            for (; n > 0 && current != null; n--) {
+                current = current.sibling;
+            }
+            return current;
         }
 
         /**

@@ -105,16 +105,16 @@ abstract class Result {
     abstract Result fold(BiFunction<List<Symbol>, Stream, Result> success, BiFunction<List<Symbol>, Stream, Result> failure);
     /**
      * Folds a Result into a void behavior. This collapses the result completely;
-     * a behavior is executed based on the value of the Result and no Result is given back.
+     * a behavior is executed based on the Result and no Result is given back.
      * However, this method returns the Result that was folded for convenience.
      *
      * Because this type of fold is used for its side-effects, it cannot be thought of as a bimap.
      *
-     * @param success A function success : List<Symbol> -> {} to fold Successes under.
-     * @param failure A function failure : List<Symbol> -> {} to fold Failures under.
+     * @param success A function success : Result -> {} to fold Successes under.
+     * @param failure A function failure : Result -> {} to fold Failures under.
      * @return The folded Result, unchanged, for convenience.
      */
-    abstract Result fold(Consumer<List<Symbol>> success, Consumer<List<Symbol>> failure);
+    abstract Result fold(Consumer<Result> success, Consumer<Result> failure);
 
     /**
      * A class representing a successful Result of a parser.
@@ -144,8 +144,8 @@ abstract class Result {
             return success.apply(value, rest);
         }
         /** The application of Result -> {} folds on Successes. Applies success() to value, and returns the Success for convenience. */
-        Result fold(Consumer<List<Symbol>> success, Consumer<List<Symbol>> failure) {
-            success.accept(value);
+        Result fold(Consumer<Result> success, Consumer<Result> failure) {
+            success.accept(this);
             return this;
         }
     }
@@ -178,8 +178,8 @@ abstract class Result {
             return failure.apply(value, rest);
         }
         /** The application of Result -> {} folds on Failures. Applies failure() to value, and returns the Failure for convenience. */
-        Result fold(Consumer<List<Symbol>> success, Consumer<List<Symbol>> failure) {
-            failure.accept(value);
+        Result fold(Consumer<Result> success, Consumer<Result> failure) {
+            failure.accept(this);
             return this;
         }
     }
