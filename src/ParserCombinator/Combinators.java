@@ -310,4 +310,71 @@ abstract class Combinators {
     static Parser delayed(Supplier<Parser> parserSupplier) {
         return new Parser(stream -> parserSupplier.get().run(stream));
     }
+
+    /**
+     * Parser supplier that gets a Parser which recognizes the grammar of BNF grammars.
+     * @return A Parser that recognizes BNF grammars.
+     */
+    static Parser getBNFParser() {
+        // Note that this grammar is not all that similar to one that this combinator
+        // would generate. It is optimized to build a direct AST rather than a
+        // parse tree through use of .ignore() to remove syntax sugar of the BNF
+        // as well as skipping redundant single-child chains.
+        // Based on the BNF grammar on the BNF wikipedia page.
+        Parser digit = set("0123456789");
+        Parser letter = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+        Parser symbol = set("| !#$%&()*+,-./:;>=<?@[\\]^_`{}~");
+        Parser character = alternate(letter, digit, symbol);
+        Parser character1 = alternate(character, accept('\''));
+        Parser character2 = alternate(character, accept('"'));
+        Parser text1 = star(character1);
+        Parser text2 = star(character2);
+        Parser rule_char = alternate(letter, digit, accept('-'));
+        Parser opt_whitespace = star(accept(' ')).ignore();
+        Parser line_end = concat(opt_whitespace, alternate(string("\n"), string(System.lineSeparator()), eof())).ignore();
+
+        // I highly recommend collapsing the lambda code block in the following line for readability.
+        Parser regex = sequence(accept('/').ignore(), new Parser(stream -> {
+            Stream s = stream;
+            StringBuilder ret = new StringBuilder();
+            for (String head = s.head(); !head.equals("/"); s = s.move(1), head = s.head()) {
+                if (head.equals("\\")) {
+                    s = s.move(1);
+                    head = s.head();
+                    if (!head.equals("/")) { // if the user was attempting to escape a character that isn't /
+                        // escape it again.
+                        ret.append("\\");
+                    }
+                }
+                ret.append(head);
+                if (line_end.run(s.move(1)) instanceof Result.Success) {
+                    return new Result.Failure(Symbol.value("Unclosed regex in grammar!"), s);
+                }
+            }
+            return new Result.Success(Symbol.value(ret.toString()), s);
+        }), accept('/').ignore())
+                .bimap(
+                        v -> v,
+                        e -> { e.clear(); e.add(Symbol.value("Couldn't match 'regex' pattern")); return e; }).parent("regex");
+        Parser literal = alternate(sequence(accept('"').ignore(), text1, accept('"').ignore()),
+                sequence(accept('\'').ignore(), text2, accept('\'').ignore())).literal().bimap(
+                v -> v,
+                e -> { e.clear(); e.add(Symbol.value("Couldn't match 'literal' pattern")); return e; }).parent("literal");
+        Parser rule_name = sequence(accept('<').ignore(), concat(letter, star(rule_char)).literal().parent("rule-name"), accept('>').ignore())
+                .bimap(
+                        v -> v,
+                        e -> { e.clear(); e.add(Symbol.value("Couldn't match 'rule name' pattern")); return e; });
+
+        Parser term = alternate(literal, rule_name, regex)/*.parent("term")*/; // will become significant when option flags are added
+        Parser list = concat(term, star(concat(opt_whitespace, term))).parent("list");
+        Parser expr = concat(list, star(sequence(
+                opt_whitespace, string("|").ignore(),
+                opt_whitespace, list))).parent("expression");
+        Parser rule = sequence(
+                opt_whitespace, rule_name.literal(),
+                opt_whitespace, string("::=").ignore(),
+                opt_whitespace, expr,
+                line_end).parent("rule");
+        return concat(plus(rule).parent("syntax"), eof()).bimap(v -> v, e -> {e.add( Symbol.value("Input did not end with a valid rule.")); return e; });
+    }
 }
