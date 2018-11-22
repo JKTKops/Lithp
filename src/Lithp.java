@@ -7,9 +7,8 @@ import java.util.Scanner;
  * @author Max Kopinsky
  */
 public class Lithp {
-    private static String input;
-
     public static void main(String[] args) {
+        String input;
         Scanner in = new Scanner(System.in);
 
         System.out.println("Lithp version 0.0.0.2\nUse exit() to exit.");

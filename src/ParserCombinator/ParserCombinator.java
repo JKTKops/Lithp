@@ -20,7 +20,7 @@ public class ParserCombinator {
         // Note that this grammar is not all that similar to one that this combinator
         // would generate. It is optimized to build a direct AST rather than a
         // parse tree through use of .ignore() to remove syntax sugar of the BNF
-        // as well as skipping all redundant single-child chains.
+        // as well as skipping redundant single-child chains.
         // Based on the BNF grammar on the BNF wikipedia page.
         Parser digit = set("0123456789");
         Parser letter = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
@@ -41,24 +41,21 @@ public class ParserCombinator {
         Parser term = alternate(literal, rule_name);
         Parser list = concat(term, star(concat(opt_whitespace, term))).parent("list");
         Parser expr = concat(list, star(sequence(
-                opt_whitespace, string("|"),
+                opt_whitespace, string("|").ignore(),
                 opt_whitespace, list))).parent("expression");
         Parser rule = sequence(
-                opt_whitespace, rule_name,
-                opt_whitespace, string("::="),
+                opt_whitespace, rule_name.literal(),
+                opt_whitespace, string("::=").ignore(),
                 opt_whitespace, expr,
                 line_end).parent("rule");
-        Parser syntax = concat(rule, star(rule)).parent("syntax");
+        Parser syntax = concat(concat(rule, star(rule)).parent("syntax"), eof());
 
-        Parser.run(term, "\"test\"");
-        Parser.run(expr, "<this-is-a-rule-name> <also-a-rule> | <alternative-rule-1> '?' <alternative-rule-2>");
-        Parser.run(rule, "<rule> ::= \"goes to\" <production-1> | <production-2>");
         Parser.run(syntax, "<first-rule> ::= <first-production>  \n <second-rule> ::= <second-production> \n  " +
                         "<third-rule> ::= <prod-1> \"some literal\" | <prod-2>");
 
-        System.out.println(new ParseTree().buildTree(syntax.run("<first-rule> ::= <first-production>  \n <second-rule> ::= <second-production> \n  " +
+        System.out.println(new ParseTree(syntax.run("<first-rule> ::= <first-production>  \n <second-rule> ::= <second-production> \n  " +
                 "<third-rule> ::= <prod-1> \"some literal\" | <prod-2>")));
-        System.out.println(new ParseTree().buildTree(syntax.run("first-rule ::= \"literal\"")));
+        System.out.println(new ParseTree(syntax.run("first-rule ::= \"literal\"")));
     }
 
 
@@ -71,8 +68,8 @@ public class ParserCombinator {
         Parser word = plus(letter).parent("word");
         Parser sentence = concat(word, plus(concat(string(" "), word))).parent("sentence");
         System.out.println(sentence.run("These are some words"));
-        System.out.println(new ParseTree().buildTree(sentence.run("These are some words")));
-        System.out.println(new ParseTree().buildTree(sentence.literal().run("These are some words")));
+        System.out.println(new ParseTree(sentence.run("These are some words")));
+        System.out.println(new ParseTree(sentence.literal().run("These are some words")));
 
         /*Parser number = concat(set("123456789"), star(set("0123456789"))).literal().parent("number");
         Parser op = set("+*-/").literal().parent("op");

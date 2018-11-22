@@ -3,18 +3,47 @@ package ParserCombinator;
 import java.util.ArrayList;
 import java.util.List;
 
-class ParseTree {
+/**
+ * A tree structure that is the output of running a ParserCombinator's Parser.
+ * The tree structure is a Left Child, Right Sibling binary tree.
+ * Also used internally as the result of parsing the input grammar.
+ * The root of the tree can be accessed with the getRoot() method.
+ *
+ * @author Max Kopinsky
+ */
+public class ParseTree {
+    /** The root node of the tree. */
     private Node root;
+    /** Whether or not this tree represents a successful parse. */
+    private boolean successful;
 
-    ParseTree buildTree(Result input) {
+    /**
+     * Constructor. Takes a Result and builds the tree from it.
+     *
+     * @param input The Result to build the tree from.
+     */
+    ParseTree(Result input) {
+        buildTree(input);
+    }
+
+    /**
+     * Builds a tree out of the input Result.
+     * If the Result is a Failure, the output tree will have only one Node which holds the error message.
+     *
+     * @param input The Result to build the tree from.
+     */
+    private void buildTree(Result input) {
         if (input instanceof Result.Failure) {
-            root = new Terminal("The parser failed with error: " + input.value.stream().map(symbol -> symbol.toString()).reduce("", (a, b) -> a + b), null);
-            return this;
+            successful = false;
+            root = new Terminal("The parser failed with error: " + input.value.stream().map(
+                    symbol -> symbol.toString()).reduce(
+                            "", (a, b) -> a + (a.equals("") || a.endsWith(": ") ? "" : ", ") + b), null);
         }
+        successful = true;
         List<Symbol> symbols = new ArrayList<>(input.value); // Don't destroy the input list
         if (symbols.size() == 1) {
             root = new Terminal(symbols.remove(0).toString(), null);
-            return this;
+            return;
         }
         root = new Nonterminal(symbols.remove(0).toString(), null);
 
@@ -37,11 +66,26 @@ class ParseTree {
                     break;
             }
         }
-        return this;
     }
 
     /**
-     * This toString() method  adapted from this StackOverflow answer:
+     * For asserting that the tree represents a successful parse.
+     * @return Whether or not this tree represents a successful parse.
+     */
+    public boolean assertSuccess() {
+        return successful;
+    }
+
+    /**
+     * Getter for the root of the tree. Necessary for classes outside the package to read the tree.
+     * @return The root of the tree.
+     */
+    public Node getRoot() {
+        return root;
+    }
+
+    /**
+     * This toString() method adapted from this StackOverflow answer:
      * https://stackoverflow.com/a/1649223
      * @return A string representation of this ParseTree.
      */
@@ -71,22 +115,46 @@ class ParseTree {
         return ret.toString();
     }
 
+    /**
+     * A class representing the nodes of the tree. Each Node stores
+     * 1) a value
+     * 2) a reference to its parent node, which is not visible outside the ParseTree class
+     * 3) a reference to its leftmost child
+     * 4) a reference to its first sibling on its right.
+     *
+     * Nodes can be Terminal or Nonterminal. A Node should be a leaf node if and only if it is Terminal.
+     */
     abstract class Node {
         private String value;
         private Node parent;
         private Node child;
         private Node sibling;
 
+        /**
+         * Constructor. Sets the Node's value and its parent.
+         * @param v Value.
+         * @param p Parent.
+         */
         Node(String v, Node p) {
             value = v;
             parent = p;
         }
 
-        String getValue() {
+        /**
+         * Getter for the value of a Node.
+         *
+         * @return The Node's value.
+         */
+        public String getValue() {
             return value;
         }
 
-        List<Node> getChildren() {
+        /**
+         * Getter for the children of a Node. Returns a list containing all children from left to right.
+         *
+         * @return A List of all the Node's children.
+         */
+        public List<Node> getChildren() {
             List<Node> ret = new ArrayList<>();
             for (Node current = child; current != null; current = current.sibling) {
                 ret.add(current);
@@ -94,6 +162,21 @@ class ParseTree {
             return ret;
         }
 
+        /**
+         * Getter for the first sibling on the right of a Node. Probably useful for building ASTs out of ParseTrees.
+         *
+         * @return The first sibling to the right of the Node.
+         */
+        public Node getSibling() {
+            return sibling;
+        }
+
+        /**
+         * Adds a child to a Node from a given Symbol.
+         *
+         * @param symbol The Symbol to make a Node from.
+         * @return The added child.
+         */
         Node addChild(Symbol symbol) {
             if (this instanceof Terminal) {
                 throw new IllegalStateException("Can't add child to a terminal.");
@@ -117,6 +200,12 @@ class ParseTree {
             return current.sibling;
         }
 
+        /**
+         * Adds a sibling to a Node from a given Symbol.
+         *
+         * @param symbol The Symbol to make a Node from.
+         * @return The added sibling.
+         */
         Node addSibling(Symbol symbol) {
             Node current = this;
             while (current.sibling != null) {
@@ -132,12 +221,14 @@ class ParseTree {
         }
     }
 
+    /** Class representing Terminal Nodes. */
     class Terminal extends Node {
         Terminal(String literal, Node parent) {
             super(literal, parent);
         }
     }
 
+    /** Class representing Nonterminal Nodes. */
     class Nonterminal extends Node {
         Nonterminal(String nonterminal, Node parent) {
             super(nonterminal, parent);
