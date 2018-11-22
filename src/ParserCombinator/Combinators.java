@@ -80,8 +80,10 @@ abstract class Combinators {
     }
 
     /**
-     * Returns a Parser that applies any number of given Parsers in sequence. If only two Parsers are required,
-     * concat() should be used instead. If zero input Parsers are desired, use an always("") Parser instead.
+     * Returns a Parser that applies any number of given Parsers in sequence.
+     * If only two Parsers are required, concat() should be used instead.
+     * If one Parser is required, that Parser should be used instead.
+     * If zero input Parsers are desired, use an always("") Parser instead, but this combinator has safety for that case.
      *
      * @param list Variadic Parser input.
      * @return A Parser that applies the given Parsers in sequence.
