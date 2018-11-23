@@ -367,16 +367,17 @@ abstract class Combinators {
         Parser multOptions = set("?*+");
         Parser literalOption = accept('l');
         Parser ignoreOption = accept('i');
-        Parser termOptions = maybe(alternate(concat(maybe(multOptions), literalOption), multOptions, ignoreOption).parent("option")); // todo: robustness. Only allow for zero or one multiplicity marker + l, or no markers + i.
-        Parser ruleOption = alternate(literalOption, ignoreOption).parent("option"); // todo: Complete the implementation of declaration-level literal and ignore options.
+        Parser termOptions = maybe(alternate(concat(maybe(multOptions), literalOption), multOptions, ignoreOption).parent("option"));
+        Parser ruleOption = alternate(literalOption, ignoreOption);
+        Parser lhsDef = concat(rule_name.literal(), maybe(ruleOption)).parent("left-hand-side");
 
-        Parser term = concat(alternate(literal, rule_name, regex), termOptions).parent("term"); // parent will become significant when option flags are added
+        Parser term = concat(alternate(literal, rule_name, regex), termOptions).parent("term");
         Parser list = concat(term, star(concat(opt_whitespace, term))).parent("list");
         Parser expr = concat(list, star(sequence(
                 opt_whitespace, string("|").ignore(),
                 opt_whitespace, list))).parent("expression");
         Parser rule = sequence(
-                opt_whitespace, rule_name.literal(), // literal() removes the .parent("rule-name") that we don't need or want here
+                opt_whitespace, lhsDef, // literal() removes the .parent("rule-name") that we don't need or want here
                 opt_whitespace, string("::=").ignore(),
                 opt_whitespace, expr,
                 line_end).parent("rule");

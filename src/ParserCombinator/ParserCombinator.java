@@ -37,21 +37,24 @@ public class ParserCombinator {
         int startCount = 0;
         String startSymbol = null;
 
+        System.out.println(grammar);
+
         // todo: throw an error if a rule is left-recursive
         // todo: verify every referenced rule is also defined
         //<editor-fold desc="Identify the start symbol. Throws errors if one can't be found or if there are multiple.">
         List<String> referencedRules = new ArrayList<>();
         List<String> definedRules = new ArrayList<>();
         for (Node rule : grammar.getRoot()) {
-            if (definedRules.contains(rule.getChild().getValue())) {
+            String defName = rule.getChild().getChild().getValue(); // rule -> lhs -> name
+            if (definedRules.contains(defName)) {
                 throw new IllegalArgumentException("A rule was defined twice. Alternation should be declared with '|' characters.");
             }
-            definedRules.add(rule.getChild().getValue());
+            definedRules.add(defName);
             for (Node list : rule.getChild(1)) {
                 for (Node potentialReference : list) {
                     if (potentialReference.getChild().getValue().equals("rule-name")) {
                         String ruleName = potentialReference.getChild().getChild().getValue();
-                        if (!referencedRules.contains(ruleName) && !ruleName.equals(rule.getChild().getValue())) {
+                        if (!referencedRules.contains(ruleName) && !ruleName.equals(defName)) {
                             referencedRules.add(ruleName);
                         }
                     }
@@ -70,12 +73,10 @@ public class ParserCombinator {
         }
         //</editor-fold>
 
-        System.out.println(grammar);
-
         Map<String, Parser> parsers = new HashMap<>();
         // iterate through rules, store the rule name
         for (Node rule : grammar.getRoot()) {
-            String ruleName = rule.getChild().getValue();
+            String ruleName = rule.getChild().getChild().getValue(); // rule -> lhs  -> name
             // Create a list of lists of temporary Parsers.
             List<List<Parser>> seqProductions = new ArrayList<>();
             // for each list in the expression, create a list of temporary Parsers and add it to the list above
@@ -141,7 +142,19 @@ public class ParserCombinator {
             } else {
                 thisRule = alternate(productions.toArray(new Parser[0]));
             }
+
+            //POSTPROCESSING ON RULE
+            Node option = rule.getChild().getChild(1);
+            // Apply literal option flag
+            if (option != null && option.getValue().equals("l")) {
+                thisRule = thisRule.literal();
+            }
+            // Apply parent after literal so we still get number ( value )
             thisRule = thisRule.parent(ruleName);
+            // Apply ignore option flag after parent so the Result never appears at all
+            if (option != null && option.getValue().equals("i")) {
+                thisRule = thisRule.ignore();
+            }
             // Store the temp Parser in the Map under the key of its name.
             parsers.put(ruleName, thisRule);
             // If its name is the start symbol, then also set parseGrammar to the temp Parser.

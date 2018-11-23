@@ -18,9 +18,9 @@ public class Lithp {
         ParserCombinator math = new ParserCombinator(
                 "<first-digit> ::= /[1-9]/\n" +
                         "<other-digits> ::= /[0-9]/\n" +
-                        "<number> ::= <first-digit> <other-digits>*\n" +
+                        "<number>l ::= <first-digit> <other-digits>*\n" +
                         "<op> ::= /[+\\-*\\/]/\n" +
-                        "<term> ::= '('i <expr> ')'i | <number>l\n" +
+                        "<term> ::= '('i <expr> ')'i | <number>\n" +
                         "<expr> ::= <term> ' 'i <op> ' 'i <term> | <term>\n" +
                         "<math> ::= <expr>");
         System.out.println(math.run("(1 + 2) / 304"));
