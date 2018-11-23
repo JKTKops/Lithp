@@ -39,6 +39,7 @@ public class ParserCombinator {
 
         // todo: throw an error if a rule is left-recursive
         // todo: verify every referenced rule is also defined
+        // todo: builtin parsers: <ws>, <line-end>, <set>[]
         //<editor-fold desc="Identify the start symbol. Throws errors if one can't be found or if there are multiple.">
         List<String> referencedRules = new ArrayList<>();
         List<String> definedRules = new ArrayList<>();
@@ -147,7 +148,7 @@ public class ParserCombinator {
             if (option != null && option.getValue().equals("l")) {
                 thisRule = thisRule.literal();
             }
-            // Apply parent after literal so we still get number ( value )
+            // Apply parent after literal so we still get [name, (, literal, )]
             thisRule = thisRule.parent(ruleName);
             // Apply ignore option flag after parent so the Result never appears at all
             if (option != null && option.getValue().equals("i")) {
@@ -157,7 +158,7 @@ public class ParserCombinator {
             parsers.put(ruleName, thisRule);
             // If its name is the start symbol, then also set parseGrammar to the temp Parser.
             if (ruleName.equals(startSymbol)) {
-                parseGrammar = thisRule;
+                parseGrammar = concat(thisRule, eof());
             }
         }
     }

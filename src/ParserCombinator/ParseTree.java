@@ -39,11 +39,15 @@ public class ParseTree {
             root = new Terminal("The parser failed with error: " + input.value.stream().map(
                     symbol -> symbol.toString()).reduce(
                             "", (a, b) -> a + (a.equals("") || a.endsWith(": ") ? "" : ", ") + b)
-                    + "\nUnparsed grammar:\n" + input.rest, null);
+                    + "\nUnparsed input:\n" + input.rest, null);
             return;
         }
         successful = true;
         List<Symbol> symbols = new ArrayList<>(input.value); // Don't destroy the input list
+        if (symbols.size() == 0) {
+            root = new Terminal("Succeeded with no output.", null);
+            return;
+        }
         if (symbols.size() == 1) {
             root = new Terminal(symbols.remove(0).toString(), null);
             return;
@@ -55,13 +59,16 @@ public class ParseTree {
             Symbol next = symbols.remove(0);
             switch (next.getType()) {
                 case CHILD_MARKER:
+                    if (symbols.get(0).getType() == Symbol.SymbolType.PARENT_MARKER) {
+                        current = current.addChild(Symbol.value(""));
+                        break;
+                    }
                     next = symbols.remove(0);
                     next.assertValue("Child marker not followed by value.");
                     current = current.addChild(next);
                     break;
                 case NONTERMINAL: // loose Symbols are siblings
                 case VALUE:
-                    next.assertValue("Sibling marker not followed by value.");
                     current = current.addSibling(next);
                     break;
                 case PARENT_MARKER:
@@ -112,8 +119,9 @@ public class ParseTree {
         ret.append(current.value).append("\n");
 
         List<Node> children = current.getChildren();
-        for (int i = 0; i < children.size(); i++) {
-            ret.append(toString(children.get(i), indent, i == children.size() - 1));
+        Node lastChild = children.size() == 0 ? null : children.get(children.size() - 1);
+        for (Node child : current) {
+            ret.append(toString(child, indent, child == lastChild));
         }
         return ret.toString();
     }
@@ -127,7 +135,7 @@ public class ParseTree {
      *
      * Nodes can be Terminal or Nonterminal. A Node should be a leaf node if and only if it is Terminal.
      */
-    abstract class Node implements Iterable<Node> {
+    public abstract class Node implements Iterable<Node> {
         private String value;
         private Node parent;
         private Node child;
@@ -177,28 +185,50 @@ public class ParseTree {
          * Convenience method for ParserCombinator. Gets the leftmost child of this Node.
          * @return The leftmost child of this Node.
          */
-        Node getChild() {
+        public Node getChild() {
             return child;
         }
         /**
          * Convenience method for ParserCombinator. Gets the nth child from the left of this Node.
          * @return The nth child of this Node from the left.
          */
-        Node getChild(int n) {
+        public Node getChild(int n) {
             Node current = child;
             for (; n > 0 && current != null; n--) {
                 current = current.sibling;
             }
             return current;
         }
-
+        public String getDeepValue(int d) {
+            if (d <= 0) {
+                return value;
+            }
+            Node current = child;
+            for (; d > 1; d--) {
+                current = current.child;
+            }
+            return current.value;
+        }
+        public int numChildren() {
+            return getChildren().size();
+        }
         /**
          * Getter for the first sibling on the right of a Node. Probably useful for building ASTs out of ParseTrees.
          *
          * @return The first sibling to the right of the Node.
          */
-        public Node getSibling() {
+        Node getSibling() {
             return sibling;
+        }
+        Node getParent() {
+            return parent;
+        }
+        public String getTags() {
+            StringBuilder tags = new StringBuilder();
+            for (ParseTree.Node current = getParent(); current != null; current = current.getParent()) {
+                tags.insert(0, "|" + current.getValue());
+            }
+            return tags.toString();
         }
 
         /**

@@ -367,6 +367,7 @@ abstract class Combinators {
         Parser multOptions = set("?*+");
         Parser literalOption = accept('l');
         Parser ignoreOption = accept('i');
+        // todo: a multiplicity flag should be allowed with ignore
         Parser termOptions = maybe(alternate(concat(maybe(multOptions), literalOption), multOptions, ignoreOption).parent("option"));
         Parser ruleOption = alternate(literalOption, ignoreOption);
         Parser lhsDef = concat(rule_name.literal(), maybe(ruleOption)).parent("left-hand-side");
