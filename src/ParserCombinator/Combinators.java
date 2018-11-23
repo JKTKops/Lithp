@@ -364,8 +364,11 @@ abstract class Combinators {
                 .bimap(
                         v -> v,
                         e -> { e.clear(); e.add(Symbol.value("Couldn't match 'rule name' pattern")); return e; });
-        Parser termOptions = star(set("?*+li").parent("option")); // todo: robustness. Only allow for zero or one multiplicity marker + l, or no markers + i.
-        Parser ruleOptions = set("li").parent("option"); // todo: Complete the implementation of declaration-level literal and ignore options.
+        Parser multOptions = set("?*+");
+        Parser literalOption = accept('l');
+        Parser ignoreOption = accept('i');
+        Parser termOptions = maybe(alternate(concat(maybe(multOptions), literalOption), multOptions, ignoreOption).parent("option")); // todo: robustness. Only allow for zero or one multiplicity marker + l, or no markers + i.
+        Parser ruleOption = alternate(literalOption, ignoreOption).parent("option"); // todo: Complete the implementation of declaration-level literal and ignore options.
 
         Parser term = concat(alternate(literal, rule_name, regex), termOptions).parent("term"); // parent will become significant when option flags are added
         Parser list = concat(term, star(concat(opt_whitespace, term))).parent("list");
