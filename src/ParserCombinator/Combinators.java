@@ -377,7 +377,7 @@ abstract class Combinators {
                 opt_whitespace, string("|").ignore(),
                 opt_whitespace, list))).parent("expression");
         Parser rule = sequence(
-                opt_whitespace, lhsDef, // literal() removes the .parent("rule-name") that we don't need or want here
+                opt_whitespace, lhsDef,
                 opt_whitespace, string("::=").ignore(),
                 opt_whitespace, expr,
                 line_end).parent("rule");

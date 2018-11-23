@@ -37,8 +37,6 @@ public class ParserCombinator {
         int startCount = 0;
         String startSymbol = null;
 
-        System.out.println(grammar);
-
         // todo: throw an error if a rule is left-recursive
         // todo: verify every referenced rule is also defined
         //<editor-fold desc="Identify the start symbol. Throws errors if one can't be found or if there are multiple.">
