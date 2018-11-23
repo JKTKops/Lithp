@@ -18,7 +18,6 @@ import static ParserCombinator.Combinators.*;
  */
 public class ParserCombinator {
     private Parser parseGrammar;
-    private Map<String, Parser> parsers = new HashMap<>();
 
     /**
      * Constructor for a ParserCombinator. Takes a grammar in BNF form.
@@ -50,8 +49,8 @@ public class ParserCombinator {
             definedRules.add(rule.getChild().getValue());
             for (Node list : rule.getChild(1)) {
                 for (Node potentialReference : list) {
-                    if (potentialReference.getValue().equals("rule-name")) {
-                        String ruleName = potentialReference.getChild().getValue();
+                    if (potentialReference.getChild().getValue().equals("rule-name")) {
+                        String ruleName = potentialReference.getChild().getChild().getValue();
                         if (!referencedRules.contains(ruleName) && !ruleName.equals(rule.getChild().getValue())) {
                             referencedRules.add(ruleName);
                         }
@@ -71,6 +70,9 @@ public class ParserCombinator {
         }
         //</editor-fold>
 
+        System.out.println(grammar);
+
+        Map<String, Parser> parsers = new HashMap<>();
         // iterate through rules, store the rule name
         for (Node rule : grammar.getRoot()) {
             String ruleName = rule.getChild().getValue();
@@ -79,28 +81,41 @@ public class ParserCombinator {
             // for each list in the expression, create a list of temporary Parsers and add it to the list above
             for (Node list : rule.getChild(1)) {
                 List<Parser> sequence = new ArrayList<>();
-                seqProductions.add(sequence);
+                seqProductions.add(sequence); // by reference.
                 // for each term in the list, add a parser that matches it to the list above
                 for (Node term : list) {
-                    switch (term.getValue()) {
+                    Node termValue = term.getChild();
+                    Parser toAdd = never(""); // just to initialize to something, but this will always be overwritten.
+                    switch (termValue.getValue()) {
                         case "regex":
-                            sequence.add(regex(term.getChild().getValue()));
+                            toAdd = regex(termValue.getChild().getValue());
                             break;
                         case "literal":
-                            sequence.add(string(term.getChild().getValue()));
+                            toAdd = string(termValue.getChild().getValue());
                             break;
                         case "rule-name":
                             // whenever a rule is encountered, check if it is in the Map.
-                            String referenceName = term.getChild().getValue();
+                            String referenceName = termValue.getChild().getValue();
                             if (parsers.containsKey(referenceName)) {
                                 // If it is, reference it directly with Map.get(ruleName)
-                                sequence.add(parsers.get(referenceName));
+                                toAdd = parsers.get(referenceName);
                             } else {
                                 // if it is not, reference it through a delayed combinator: delayed(() -> Map.get(ruleName))
-                                sequence.add(delayed(() -> parsers.get(referenceName)));
+                                toAdd = delayed(() -> parsers.get(referenceName));
                             }
                             break;
                     }
+                    // Apply option flags to the term
+                    for (Node option = termValue.getSibling(); option != null; option = option.getSibling()) {
+                        switch (option.getChild().getValue()) {
+                            case "?": toAdd = maybe(toAdd); break;
+                            case "+": toAdd = plus(toAdd); break;
+                            case "*": toAdd = star(toAdd); break;
+                            case "l": toAdd = toAdd.literal(); break;
+                            case "i": toAdd = toAdd.ignore(); break;
+                        }
+                    }
+                    sequence.add(toAdd);
                 }
             }
 
@@ -111,6 +126,9 @@ public class ParserCombinator {
             List<Parser> productions = seqProductions.stream().map(sequence -> {
                         if (sequence.size() == 1) {
                             return sequence.get(0);
+                        }
+                        if (sequence.size() == 2) {
+                            return concat(sequence.get(0), sequence.get(1));
                         }
                         return sequence(sequence.toArray(new Parser[0]));
                     }).collect(Collectors.toList());
@@ -135,21 +153,5 @@ public class ParserCombinator {
 
     public ParseTree run(String input) {
         return new ParseTree(parseGrammar.run(input));
-    }
-
-    public static void main(String[] args) {
-        ParserCombinator test = new ParserCombinator(
-                "<recur-1> ::= \"this\" / / \"should work\" /!/\n" +
-                        "<recur-2> ::= <recur-1>\n" +
-                        "<rule-3> ::= <recur-2>");
-        System.out.println(test.run("this should work!"));
-
-        ParserCombinator math = new ParserCombinator(
-                "<number> ::= /[1-9][0-9]*/\n" +
-                        "<op> ::= /[+\\-*\\/]/\n" +
-                        "<term> ::= '(' <expr> ')' | <number>\n" +
-                        "<expr> ::= <term> ' ' <op> ' ' <term> | <term>\n" +
-                        "<math> ::= <expr>");
-        System.out.println(math.run("(1 + 2) / 3"));
     }
 }
