@@ -24,7 +24,7 @@ public class LithpEvaluator {
         if (cells.size() == 0) return value;
         LithpValue macroCheck = eval(env, cells.get(0));
         if (macroCheck.getType() == LithpValue.Type.MACRO) {
-            value.pop();
+            value.pop(); // pull the macro out of the expression and evaluate args
             return macroCheck.getFunction().apply(env, value);
         }
         if (cells.size() == 1) {
@@ -56,42 +56,113 @@ public class LithpEvaluator {
         return value;
     }
 
-    // builtin functions
-    LithpValue builtinLen(LithpValue arg) {
+    // builtin macros
+    LithpValue builtinDefValues(LithpEnv env, LithpValue args) {
+        if (args.getCount() == 0) {
+            return LithpValue.voidValue();
+        }
+        if (args.getCount() != 2) {
+            return LithpValue.err("Function 'def-values' actual and formal argument lists differ in length.\n" +
+                    "Formal: 2, Actual: " + args.getCount() + ".");
+        }
+        LithpValue sym = args.pop();
+        if (sym.getType() == LithpValue.Type.SYM) {
+            if (env.contains(sym)) {
+                sym = env.get(sym);
+            } else {
+                return builtinDef(env, sym);
+            }
+        }
+        LithpValue.Type listType = sym.getType();
+        if (listType != LithpValue.Type.Q_EXPR && listType != LithpValue.Type.S_EXPR) {
+            return LithpValue.err("Function 'def-values' passed incorrect type for first argument.\n" +
+                    "Expected Symbol or List, found " + typeName(listType) + ": " + sym + ".");
+        }
+        LithpValue valueList = eval(env, args.pop());
+        if (valueList.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'def-values' passed incorrect type for second argument.\n" +
+                    "Expected List, found " + typeName(valueList.getType()) + ": " + valueList + ".");
+        }
+        if (sym.getCount() != valueList.getCount()) {
+            return LithpValue.err("Function 'def-values' passed lists of different length.\n" +
+                    "Keys: " + sym +"\n" +
+                    "Values: " + valueList);
+        }
+        List<LithpValue> keys = sym.getCells();
+        List<LithpValue> values = valueList.getCells();
+        for (int i = 0; i < sym.getCount(); i++) {
+            env.put(keys.get(i), eval(env, values.get(i)));
+        }
+        return LithpValue.voidValue();
+    }
+    LithpValue builtinDef(LithpEnv env, LithpValue args) {
+        if (args.getCount() == 0) {
+            return LithpValue.voidValue();
+        }
+        LithpValue sym = args.pop();
         //<editor-fold desc="Error checking">
-        if (arg.getCount() != 1) {
-            return LithpValue.err("Function 'len' not passed exactly one argument.");
+        if (args.getCount() != 1) { // symbol arg popped already
+            return LithpValue.err("Function 'def' actual and formal arguments lists differ in length.\n" +
+                    "Formal: 2, Actual: " + (args.getCount() + 1) + ".");
         }
-        if (arg.getCells().get(0).getType() != (LithpValue.Type.Q_EXPR)) {
-            return LithpValue.err("Function 'len' passed incorrect types.");
+        LithpValue.Type listType = sym.getType();
+        if (listType != LithpValue.Type.SYM) {
+            return LithpValue.err("Function 'def' passed incorrect type for first argument.\n" +
+                    "Expected Symbol, found " + typeName(listType) + ": " + sym + ".");
         }
-        //</editor-fold>
-        return LithpValue.num(arg.getCells().get(0).getCount());
+        //</editor-fold>;
+        env.put(sym, eval(env, args.pop()));
+        return LithpValue.voidValue();
     }
     LithpValue builtinQuote(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
-            return LithpValue.err("Function 'quote' not passed exactly one argument.");
+            return LithpValue.err("Function 'quote' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        if (arg.getCells().get(0).getType() != (LithpValue.Type.S_EXPR)) {
-            return LithpValue.err("Function 'quote' passed incorrect types.");
+        LithpValue sexp = arg.pop();
+        if (sexp.getType() != (LithpValue.Type.S_EXPR)) {
+            return LithpValue.err("Function 'quote' passed incorrect type.\n" +
+                    "Expected S-Expression, found " + typeName(sexp) + ": " + sexp + ".");
         }
         //</editor-fold>
-        arg.getCells().get(0).setType(LithpValue.Type.Q_EXPR);
-        return arg.getCells().get(0);
+        sexp.setType(LithpValue.Type.Q_EXPR);
+        return sexp;
+    }
+    LithpValue builtinExit() {
+        return LithpValue.exit();
+    }
+    // builtin functions
+    LithpValue builtinLen(LithpValue arg) {
+        //<editor-fold desc="Error checking">
+        if (arg.getCount() != 1) {
+            return LithpValue.err("Function 'len' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
+        }
+        LithpValue list = arg.pop();
+        if (list.getType() != (LithpValue.Type.Q_EXPR)) {
+            return LithpValue.err("Function 'len' passed incorrect type.\n" +
+                    "Expected List, found " + typeName(list) + ": " + list + ".");
+        }
+        //</editor-fold>
+        return LithpValue.num(list.getCount());
     }
     LithpValue builtinHead(LithpValue arg) {
         //<editor-fold desc="Error checking">
-        if (arg.getCount() != 1) return LithpValue.err("Function 'head' not passed exactly one argument.");
-        if (arg.getCells().get(0).getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'head' passed incorrect types.");
+        if (arg.getCount() != 1) {
+            return LithpValue.err("Function 'head' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        if (arg.getCells().get(0).getCount() == 0) {
+        LithpValue ret = arg.pop();
+        if (ret.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'head' passed incorrect type.\n" +
+                    "Expected List, found " + typeName(ret) + ": " + ret + ".");
+        }
+        if (ret.getCount() == 0) {
             return LithpValue.err("Function 'head' passed '().");
         }
         //</editor-fold>
-        LithpValue ret = arg.pop();
-        List<LithpValue> qexpr = ret.getCells();
+        List<LithpValue> qexpr = ret.getCells(); // ret is defined in the editor fold
         while (qexpr.size() > 1) {
             qexpr.remove(1);
         }
@@ -100,17 +171,19 @@ public class LithpEvaluator {
     LithpValue builtinTail(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1){
-            return LithpValue.err("Function 'tail' not passed exactly one argument.");
+            return LithpValue.err("Function 'tail' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        if (arg.getCells().get(0).getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'tail' passed incorrect types.");
+        LithpValue ret = arg.pop();
+        if (ret.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'tail' passed incorrect type.\n" +
+                    "Expected List, found " + typeName(ret) + ": " + ret + ".");
         }
-        if (arg.getCells().get(0).getCount() == 0) {
+        if (ret.getCount() == 0) {
             return LithpValue.err("Function 'tail' passed '().");
         }
         //</editor-fold>
-        LithpValue ret = arg.pop();
-        ret.getCells().remove(0);
+        ret.getCells().remove(0); // ret is defined in the editor fold, ret = arg.pop()
         return ret;
     }
     LithpValue builtinJoin(LithpValue args) {
@@ -120,7 +193,8 @@ public class LithpEvaluator {
         }
         for (LithpValue v : args) {
             if (v.getType() != LithpValue.Type.Q_EXPR) {
-                return LithpValue.err("Function 'join' passed incorrect type.");
+                return LithpValue.err("Function 'join' passed incorrect type.\n" +
+                        "Expected List, found " + typeName(v) + ": " + v + ".");
             }
         }
         //</editor-fold>
@@ -137,18 +211,17 @@ public class LithpEvaluator {
     LithpValue builtinEval(LithpEnv env, LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
-            return LithpValue.err("Function 'eval' not passed exactly one argument.");
+            return LithpValue.err("Function 'eval' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        if (arg.getCells().get(0).getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'eval' passed incorrect type." + arg);
+        LithpValue x = arg.pop();
+        if (x.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'eval' passed incorrect type.\n" +
+                    "Expected List, found " + typeName(x) + ": " + x + ".");
         }
         //</editor-fold>
-        LithpValue x = arg.pop();
-        x.setType(LithpValue.Type.S_EXPR);
+        x.setType(LithpValue.Type.S_EXPR); // x = arg.pop() in the editor fold
         return eval(env, x);
-    }
-    LithpValue builtinExit() {
-        return LithpValue.exit();
     }
     private LithpValue builtinOp(LithpValue args, String op) {
         for (LithpValue arg : args) {
@@ -205,5 +278,31 @@ public class LithpEvaluator {
     }
     LithpValue builtinPow(LithpValue args) {
         return builtinOp(args, "^");
+    }
+
+    // for error reporting
+    private String typeName(LithpValue.Type type) {
+        switch (type) {
+            case Q_EXPR:
+                return "List";
+            case SYM:
+                return "Symbol";
+            case VOID:
+                return "Void";
+            case MACRO:
+            case FUNC:
+                return "Function";
+            case S_EXPR:
+                return "S-Expression";
+            case NUM:
+                return "Number";
+            case ERR:
+                return "Error";
+            default:
+                return "Unknown";
+        }
+    }
+    private String typeName(LithpValue value) {
+        return typeName(value.getType());
     }
 }

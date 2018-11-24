@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 /**
  * Main class of the REPL interpreter.
- * Handles the REPL.
+ * Maintains the Lithp grammar and handles the REPL.
  *
  * @author Max Kopinsky
  */
@@ -22,7 +22,7 @@ public class REPL {
         String code;
         Scanner in = new Scanner(System.in);
 
-        System.out.println("Lithp version 0.0.2.5\nUse (exit) to exit.");
+        System.out.println("Lithp version 0.0.2.10\nUse (exit) to exit.");
 
         while(true) {
             System.out.print("Lithp>");

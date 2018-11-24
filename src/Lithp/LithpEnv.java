@@ -13,11 +13,15 @@ class LithpEnv {
 
     LithpValue get(LithpValue key) {
         LithpValue ret = vars.get(key.getSym());
-        return ret != null ? ret : LithpValue.err("Unbound Symbol.");
+        return ret != null ? ret : LithpValue.err("Unbound Symbol: " + key.getSym());
     }
 
     void put(LithpValue key, LithpValue value) {
         vars.put(key.getSym(), value);
+    }
+
+    boolean contains(LithpValue key) {
+        return vars.containsKey(key.getSym());
     }
 
     private void addBuiltin(String name, BiFunction<LithpEnv, LithpValue, LithpValue> func) {
@@ -31,7 +35,10 @@ class LithpEnv {
         /* builtin values */
         vars.put("#<void>", LithpValue.voidValue());
 
-        /* Exit function */
+        /* Builtin macros */
+        addBuiltinMacro("def", evaluator::builtinDef);
+        addBuiltinMacro("def-values", evaluator::builtinDefValues);
+        // exit function
         addBuiltinMacro("exit", (env, arg) -> evaluator.builtinExit());
 
         /* List functions */
