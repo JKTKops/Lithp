@@ -21,7 +21,13 @@ public class LithpEvaluator {
             return builtinQuote(value);
         }
         cells.set(0, quoteCheck);
-        if (cells.size() == 1) return cells.get(0);
+        if (cells.size() == 1) {
+            LithpValue func = cells.get(0);
+            if (func.getType() == LithpValue.Type.SYM && func.toString().equals("exit")) {
+                return LithpValue.exit();
+            }
+            return func;
+        }
         for (int i = 1; i < value.getCount(); i++) {
             cells.set(i, eval(cells.get(i)));
         } // evaluate all children
