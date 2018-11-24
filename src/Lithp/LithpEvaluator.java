@@ -20,8 +20,8 @@ public class LithpEvaluator {
             value.pop();
             return builtinQuote(value);
         }
-
         cells.set(0, quoteCheck);
+        if (cells.size() == 1) return cells.get(0);
         for (int i = 1; i < value.getCount(); i++) {
             cells.set(i, eval(cells.get(i)));
         } // evaluate all children
