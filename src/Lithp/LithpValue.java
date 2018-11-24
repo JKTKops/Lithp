@@ -23,6 +23,11 @@ public class LithpValue implements Iterable<LithpValue> {
         if (!(type == Type.S_EXPR || type == Type.Q_EXPR)) { return; }
         lvals.add(toAdd);
     }
+    void join(LithpValue y) {
+        while (y.getCount() > 0) {
+            add(y.pop());
+        }
+    }
 
     static LithpValue read(ParseTree.Node node) {
         switch (node.getValue()) {
@@ -85,6 +90,9 @@ public class LithpValue implements Iterable<LithpValue> {
     Type getType() {
         return type;
     }
+    void setType(Type setType) {
+        type = setType;
+    }
     long getNum() {
         return num;
     }
@@ -111,6 +119,17 @@ public class LithpValue implements Iterable<LithpValue> {
     }
 
     private LithpValue() {}
+    LithpValue(LithpValue toCopy) {
+        type = toCopy.type;
+        switch (toCopy.type) {
+            case NUM: num = toCopy.num; break;
+            case ERR: err = toCopy.err; break;
+            case SYM: sym = toCopy.sym; break;
+            case Q_EXPR:
+            case S_EXPR: lvals = new ArrayList<>(toCopy.lvals); break;
+
+        }
+    }
 
     static LithpValue num(long n) {
         LithpValue v = new LithpValue();

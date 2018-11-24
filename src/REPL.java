@@ -13,7 +13,8 @@ public class REPL {
         LithpEvaluator evaluator = new LithpEvaluator();
         ParserCombinator lithp = new ParserCombinator(
                 "<number> ::= /-?[0-9]+/\n" +
-                        "<symbol> ::= '+' | '-' | '*' | '/' | '%' | '^' | \"exit\"\n" +
+                        "<symbol> ::= 'list' | 'head' | 'tail' | 'join' | 'eval' | 'len' " +
+                        "           | 'exit' | 'quote' | '+' | '-' | '*' | '/' | '%' | '^'\n" +
                         "<ws>i ::= ' '*\n" +
                         "<expr> ::= <number> <ws> | <symbol> <ws> | <sexpr> <ws> | <qexpr> <ws>\n" +
                         "<sexpr> ::= '('i <ws> <expr>* ')'i\n" +
@@ -22,7 +23,7 @@ public class REPL {
         String code;
         Scanner in = new Scanner(System.in);
 
-        System.out.println("Lithp version 0.0.2.2\nUse (exit) to exit.");
+        System.out.println("Lithp version 0.0.2.5\nUse (exit) to exit.");
 
         while(true) {
             System.out.print("Lithp>");
