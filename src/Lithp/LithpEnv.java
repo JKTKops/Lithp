@@ -28,6 +28,9 @@ class LithpEnv {
     }
 
     void loadBuiltins(LithpEvaluator evaluator) {
+        /* builtin values */
+        vars.put("#<void>", LithpValue.voidValue());
+
         /* Exit function */
         addBuiltinMacro("exit", (env, arg) -> evaluator.builtinExit());
 

@@ -36,6 +36,8 @@ public class LithpValue implements Iterable<LithpValue> {
         switch (node.getValue()) {
             case "number":
                 return readNum(node.getChild());
+            case "void":
+                return LithpValue.voidValue();
             case "symbol":
                 return LithpValue.sym(node.getDeepValue(1));
             case "expr":
@@ -76,6 +78,7 @@ public class LithpValue implements Iterable<LithpValue> {
     public String toString() {
         switch(type) {
             case NUM: return String.valueOf(num);
+            case VOID: return "#<void>";
             case SYM: return sym;
             case S_EXPR: return exprString("(", ")");
             case Q_EXPR: return exprString("'(", ")");
