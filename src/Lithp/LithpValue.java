@@ -5,9 +5,10 @@ import ParserCombinator.ParseTree;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiFunction;
 
 public class LithpValue implements Iterable<LithpValue> {
-    enum Type { ERR, NUM, SYM, S_EXPR, Q_EXPR /* stops evaluation */ }
+    enum Type { ERR, VOID, NUM, SYM, S_EXPR, Q_EXPR /* stops evaluation */, FUNC, MACRO }
 
     /** The type of this L-val */
     private Type type;
@@ -18,6 +19,8 @@ public class LithpValue implements Iterable<LithpValue> {
     private String sym;
     /** S_EXPR types store a list of L-Vals */
     private List<LithpValue> lvals;
+    /** FUNC types store a (LithpEnv, LithpValue) -> LithpValue function */
+    private BiFunction<LithpEnv, LithpValue, LithpValue> function;
 
     void add(LithpValue toAdd) {
         if (!(type == Type.S_EXPR || type == Type.Q_EXPR)) { return; }
@@ -76,6 +79,8 @@ public class LithpValue implements Iterable<LithpValue> {
             case SYM: return sym;
             case S_EXPR: return exprString("(", ")");
             case Q_EXPR: return exprString("'(", ")");
+            case FUNC: return "<function>: " + sym;
+            case MACRO: return "<function>: " + sym; // not sure if this one can happen without evaluating the macro
             case ERR: return "Error: " + err;
         }
         return "Untyped Lithp Value";
@@ -99,6 +104,9 @@ public class LithpValue implements Iterable<LithpValue> {
     void setNum(long setNum) {
         num = setNum;
     }
+    String getSym() {
+        return sym;
+    }
     String getErr() {
         return err;
     }
@@ -114,20 +122,30 @@ public class LithpValue implements Iterable<LithpValue> {
     List<LithpValue> getCells() {
         return lvals;
     }
-    void setCells(List<LithpValue> cells) {
-        lvals = cells;
+    BiFunction<LithpEnv, LithpValue, LithpValue> getFunction() {
+        return function;
     }
 
     private LithpValue() {}
-    LithpValue(LithpValue toCopy) {
+    private LithpValue(LithpValue toCopy) {
         type = toCopy.type;
-        switch (toCopy.type) {
+        switch(type) {
+            case FUNC:
+            case MACRO:
+                sym = toCopy.sym;
+                function = toCopy.function;
+                break;
+            case VOID: break;
             case NUM: num = toCopy.num; break;
-            case ERR: err = toCopy.err; break;
             case SYM: sym = toCopy.sym; break;
+            case ERR: err = toCopy.err; break;
+            case S_EXPR:
             case Q_EXPR:
-            case S_EXPR: lvals = new ArrayList<>(toCopy.lvals); break;
-
+                lvals = new ArrayList<>();
+                for (LithpValue copy : toCopy) {
+                    lvals.add(new LithpValue(copy));
+                }
+                break;
         }
     }
 
@@ -141,6 +159,11 @@ public class LithpValue implements Iterable<LithpValue> {
         LithpValue v = new LithpValue();
         v.type = Type.ERR;
         v.err = e;
+        return v;
+    }
+    static LithpValue voidValue() {
+        LithpValue v = new LithpValue();
+        v.type = Type.VOID;
         return v;
     }
     static LithpValue sym(String s) {
@@ -159,6 +182,20 @@ public class LithpValue implements Iterable<LithpValue> {
         LithpValue v = new LithpValue();
         v.type = Type.Q_EXPR;
         v.lvals = new ArrayList<>();
+        return v;
+    }
+    static LithpValue func(String symbol, BiFunction<LithpEnv, LithpValue, LithpValue> func) {
+        LithpValue v = new LithpValue();
+        v.type = Type.FUNC;
+        v.sym = symbol;
+        v.function = func;
+        return v;
+    }
+    static LithpValue macro(String symbol, BiFunction<LithpEnv, LithpValue, LithpValue> func) {
+        LithpValue v = new LithpValue();
+        v.type = Type.MACRO;
+        v.sym = symbol;
+        v.function = func;
         return v;
     }
     static LithpValue exit() {

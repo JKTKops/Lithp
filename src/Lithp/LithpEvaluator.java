@@ -5,65 +5,59 @@ import ParserCombinator.ParseTree;
 import java.util.List;
 
 public class LithpEvaluator {
+    private LithpEnv globalEnv;
+
+    public LithpEvaluator() {
+        globalEnv = new LithpEnv();
+        globalEnv.loadBuiltins(this);
+    }
+
     public int eval(ParseTree AST) {
-        LithpValue result = eval(LithpValue.read(AST.getRoot().getChild()));
+        LithpValue result = eval(globalEnv, LithpValue.read(AST.getRoot().getChild()));
         if (result.getType() == LithpValue.Type.ERR && result.getErr().equals("exit")) return -1;
         System.out.println(result);
         return 0;
     }
 
-    private LithpValue evalSexpr(LithpValue value) {
+    private LithpValue evalSexpr(LithpEnv env, LithpValue value) {
         List<LithpValue> cells = value.getCells();
         if (cells.size() == 0) return value;
-        LithpValue quoteCheck = eval(cells.get(0));
-        if (quoteCheck.getType() == LithpValue.Type.SYM && quoteCheck.toString().equals("quote")) {
+        LithpValue macroCheck = eval(env, cells.get(0));
+        if (macroCheck.getType() == LithpValue.Type.MACRO) {
             value.pop();
-            return builtinQuote(value);
+            return macroCheck.getFunction().apply(env, value);
         }
-        cells.set(0, quoteCheck);
         if (cells.size() == 1) {
-            LithpValue func = cells.get(0);
-            if (func.getType() == LithpValue.Type.SYM && func.toString().equals("exit")) {
-                return LithpValue.exit();
-            }
-            return func;
+            return macroCheck;
         }
+        cells.set(0, macroCheck);
         for (int i = 1; i < value.getCount(); i++) {
-            cells.set(i, eval(cells.get(i)));
+            cells.set(i, eval(env, cells.get(i)));
         } // evaluate all children
         for (LithpValue cell : value) {
             if (cell.getType() == LithpValue.Type.ERR) return cell;
         }
 
-        if (cells.get(0).getType() != LithpValue.Type.SYM) {
-            return LithpValue.err("S-expression does not start with symbol: " + value);
+        LithpValue function = value.pop();
+        if (function.getType() != LithpValue.Type.FUNC) {
+            return LithpValue.err("S-expression does not start with function: " + value);
         }
 
-        return builtin(value, value.pop().toString());
+        return function.getFunction().apply(env, value);
     }
 
-    private LithpValue eval(LithpValue value) {
+    private LithpValue eval(LithpEnv env, LithpValue value) {
+        if (value.getType() == LithpValue.Type.SYM) {
+            return env.get(value);
+        }
         if (value.getType() == LithpValue.Type.S_EXPR) {
-            return evalSexpr(value);
+            return evalSexpr(env, value);
         }
         return value;
     }
 
-    private LithpValue builtin(LithpValue args, String function) {
-        switch (function) {
-            case "list": return builtinList(args);
-            case "head": return builtinHead(args);
-            case "tail": return builtinTail(args);
-            case "join": return builtinJoin(args);
-            case "eval": return builtinEval(args);
-            case "len": return builtinLen(args);
-            case "exit": return LithpValue.exit();
-        }
-        if ("+-/*%^".contains(function)) return builtinOp(args, function);
-        return LithpValue.err("Unknown function: " + function);
-    }
-
-    private LithpValue builtinLen(LithpValue arg) {
+    // builtin functions
+    LithpValue builtinLen(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
             return LithpValue.err("Function 'len' not passed exactly one argument.");
@@ -74,7 +68,7 @@ public class LithpEvaluator {
         //</editor-fold>
         return LithpValue.num(arg.getCells().get(0).getCount());
     }
-    private LithpValue builtinQuote(LithpValue arg) {
+    LithpValue builtinQuote(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
             return LithpValue.err("Function 'quote' not passed exactly one argument.");
@@ -86,7 +80,7 @@ public class LithpEvaluator {
         arg.getCells().get(0).setType(LithpValue.Type.Q_EXPR);
         return arg.getCells().get(0);
     }
-    private LithpValue builtinHead(LithpValue arg) {
+    LithpValue builtinHead(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) return LithpValue.err("Function 'head' not passed exactly one argument.");
         if (arg.getCells().get(0).getType() != LithpValue.Type.Q_EXPR) {
@@ -103,7 +97,7 @@ public class LithpEvaluator {
         }
         return ret;
     }
-    private LithpValue builtinTail(LithpValue arg) {
+    LithpValue builtinTail(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1){
             return LithpValue.err("Function 'tail' not passed exactly one argument.");
@@ -119,7 +113,7 @@ public class LithpEvaluator {
         ret.getCells().remove(0);
         return ret;
     }
-    private LithpValue builtinJoin(LithpValue args) {
+    LithpValue builtinJoin(LithpValue args) {
         //<editor-fold desc="Error checking">
         if (args.getCount() == 0) {
             return LithpValue.err("Function 'join' passed 0 arguments.");
@@ -136,11 +130,11 @@ public class LithpEvaluator {
         }
         return x;
     }
-    private LithpValue builtinList(LithpValue arg) {
+    LithpValue builtinList(LithpValue arg) {
         arg.setType(LithpValue.Type.Q_EXPR);
         return arg;
     }
-    private LithpValue builtinEval(LithpValue arg) {
+    LithpValue builtinEval(LithpEnv env, LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
             return LithpValue.err("Function 'eval' not passed exactly one argument.");
@@ -151,7 +145,10 @@ public class LithpEvaluator {
         //</editor-fold>
         LithpValue x = arg.pop();
         x.setType(LithpValue.Type.S_EXPR);
-        return eval(x);
+        return eval(env, x);
+    }
+    LithpValue builtinExit() {
+        return LithpValue.exit();
     }
     private LithpValue builtinOp(LithpValue args, String op) {
         for (LithpValue arg : args) {
@@ -190,5 +187,23 @@ public class LithpEvaluator {
             }
         }
         return x;
+    }
+    LithpValue builtinAdd(LithpValue args) {
+        return builtinOp(args, "+");
+    }
+    LithpValue builtinSub(LithpValue args) {
+        return builtinOp(args, "-");
+    }
+    LithpValue builtinMult(LithpValue args) {
+        return builtinOp(args, "*");
+    }
+    LithpValue builtinDiv(LithpValue args) {
+        return builtinOp(args, "/");
+    }
+    LithpValue builtinMod(LithpValue args) {
+        return builtinOp(args, "%");
+    }
+    LithpValue builtinPow(LithpValue args) {
+        return builtinOp(args, "^");
     }
 }

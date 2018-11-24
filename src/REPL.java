@@ -13,8 +13,7 @@ public class REPL {
         LithpEvaluator evaluator = new LithpEvaluator();
         ParserCombinator lithp = new ParserCombinator(
                 "<number> ::= /-?[0-9]+/\n" +
-                        "<symbol> ::= 'list' | 'head' | 'tail' | 'join' | 'eval' | 'len' " +
-                        "           | 'exit' | 'quote' | '+' | '-' | '*' | '/' | '%' | '^'\n" +
+                        "<symbol> ::= /[a-zA-Z0-9_+\\-*\\/\\\\=<>?~!@#$%^&|]+/\n" +
                         "<ws>i ::= ' '*\n" +
                         "<expr> ::= <number> <ws> | <symbol> <ws> | <sexpr> <ws> | <qexpr> <ws>\n" +
                         "<sexpr> ::= '('i <ws> <expr>* ')'i\n" +
