@@ -241,7 +241,11 @@ public class LithpEvaluator {
                             "Symbol '&' not followed by exactly one Symbol.");
                 }
                 formalSym = formals.pop();
-                func.getEnv().put(formalSym, builtinList(args));
+                if (args.getCount() == 1 && args.get(0).equals(LithpValue.VOID)) {
+                    func.getEnv().put(formalSym, LithpValue.qexpr());
+                } else {
+                    func.getEnv().put(formalSym, builtinList(args));
+                }
                 break;
             }
             func.getEnv().put(formalSym, args.pop());
@@ -327,7 +331,7 @@ public class LithpEvaluator {
             }
         }
         //</editor-fold>
-        LithpValue x = args.pop();
+        LithpValue x = new LithpValue(args.pop());
         while (args.getCount() > 0) {
             x.join(args.pop());
         }
@@ -402,6 +406,7 @@ public class LithpEvaluator {
     LithpValue builtinGeq(LithpValue args) {
         return builtinOrd(args, ">-");
     }
+    // boolean operations
     LithpValue builtinBool(LithpValue arg) {
         if (arg.getCount() != 1) {
             return LithpValue.err("Function 'bool' actual and formal argument lists differ in length.\n" +
@@ -412,6 +417,29 @@ public class LithpEvaluator {
             return LithpValue.FALSE;
         }
         return LithpValue.TRUE;
+    }
+    LithpValue builtinAnd(LithpValue args) {
+        for(LithpValue term : args) {
+            if (term.equals(LithpValue.FALSE) || term.equals(LithpValue.NIL) || term.equals(LithpValue.sexpr()) || (term.getType() == LithpValue.Type.NUM && term.getNum() == 0)) {
+                return LithpValue.FALSE;
+            }
+        }
+        return LithpValue.TRUE;
+    }
+    LithpValue builtinOr(LithpValue args) {
+        for(LithpValue term : args) {
+            if (!(term.equals(LithpValue.FALSE) || term.equals(LithpValue.NIL) || term.equals(LithpValue.sexpr()) || (term.getType() == LithpValue.Type.NUM && term.getNum() == 0))) {
+                return LithpValue.TRUE;
+            }
+        }
+        return LithpValue.FALSE;
+    }
+    LithpValue builtinNot(LithpValue arg) {
+        if (arg.getCount() != 1) {
+            return LithpValue.err("Function 'not' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
+        }
+        return builtinBool(arg).equals(LithpValue.FALSE) ? LithpValue.TRUE : LithpValue.FALSE;
     }
     // math functions
     private LithpValue builtinOp(LithpValue args, String op) {

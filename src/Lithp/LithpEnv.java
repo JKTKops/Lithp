@@ -85,7 +85,7 @@ class LithpEnv {
         addBuiltin("eval", evaluator::builtinEval);
         addBuiltin("join", (env, args) -> evaluator.builtinJoin(args));
 
-        /* Comparison functions (and bool) */
+        /* Comparison and boolean functions */
         addBuiltin("eq?", (env, args) -> evaluator.builtinEqAny(args));
         addBuiltin("==", (env, args) -> evaluator.builtinEq(args));
         addBuiltin("!=", (env, args) -> evaluator.builtinNeq(args));
@@ -94,6 +94,9 @@ class LithpEnv {
         addBuiltin(">", (env, args) -> evaluator.builtinGe(args));
         addBuiltin(">=", (env, args) -> evaluator.builtinGeq(args));
         addBuiltin("bool", (env, arg) -> evaluator.builtinBool(arg));
+        addBuiltin("and", (env, args) -> evaluator.builtinAnd(args));
+        addBuiltin("or", (env, args) -> evaluator.builtinOr(args));
+        addBuiltin("not", (env, arg) -> evaluator.builtinNot(arg));
 
         /* Math functions */
         addBuiltin("+", (env, args) -> evaluator.builtinAdd(args));
