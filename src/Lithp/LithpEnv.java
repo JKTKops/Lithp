@@ -40,7 +40,7 @@ class LithpEnv {
 
     void def(LithpValue key, LithpValue value) {
         LithpEnv current = this;
-        while (current.parent != null) {
+        while (current.parent.parent != null) {
             current = current.parent;
         }
         current.put(key, value);
@@ -59,17 +59,23 @@ class LithpEnv {
 
     void loadBuiltins(LithpEvaluator evaluator) {
         /* builtin values */
-        vars.put("#<void>", LithpValue.voidValue());
+        vars.put("nil", LithpValue.NIL);
+        vars.put("#t", LithpValue.TRUE);
+        vars.put("#f", LithpValue.FALSE);
+        vars.put("#<void>", LithpValue.VOID);
 
         /* Builtin macros */
+        addBuiltinMacro("if", evaluator::builtinIf);
         addBuiltinMacro("def", evaluator::builtinDef);
         addBuiltinMacro("let", evaluator::builtinLet);
         addBuiltinMacro("def-values", evaluator::builtinDefValues);
         addBuiltinMacro("let-values", evaluator::builtinLetValues);
-        addBuiltinMacro("lambda", evaluator::builtinLambda);
         addBuiltinMacro("quote", (env, arg) -> evaluator.builtinQuote(arg));
         // exit function
         addBuiltinMacro("exit", (env, arg) -> evaluator.builtinExit());
+
+        /* Lambda */
+        addBuiltin("lambda", evaluator::builtinLambda);
 
         /* List functions */
         addBuiltin("list", (env, args) -> evaluator.builtinList(args));
@@ -78,6 +84,16 @@ class LithpEnv {
         addBuiltin("len", (env, arg) -> evaluator.builtinLen(arg));
         addBuiltin("eval", evaluator::builtinEval);
         addBuiltin("join", (env, args) -> evaluator.builtinJoin(args));
+
+        /* Comparison functions (and bool) */
+        addBuiltin("eq?", (env, args) -> evaluator.builtinEqAny(args));
+        addBuiltin("==", (env, args) -> evaluator.builtinEq(args));
+        addBuiltin("!=", (env, args) -> evaluator.builtinNeq(args));
+        addBuiltin("<", (env, args) -> evaluator.builtinLe(args));
+        addBuiltin("<=", (env, args) -> evaluator.builtinLeq(args));
+        addBuiltin(">", (env, args) -> evaluator.builtinGe(args));
+        addBuiltin(">=", (env, args) -> evaluator.builtinGeq(args));
+        addBuiltin("bool", (env, arg) -> evaluator.builtinBool(arg));
 
         /* Math functions */
         addBuiltin("+", (env, args) -> evaluator.builtinAdd(args));

@@ -9,13 +9,18 @@ import java.util.function.BiFunction;
 
 public class LithpValue implements Iterable<LithpValue> {
     final static LithpValue VOID = LithpValue.voidValue();
+    final static LithpValue TRUE = LithpValue.bool(true);
+    final static LithpValue FALSE = LithpValue.bool(false);
+    final static LithpValue NIL = LithpValue.qexpr();
 
-    enum Type { ERR, VOID, NUM, SYM, S_EXPR, Q_EXPR /* stops evaluation */, FUNC, MACRO }
+    enum Type { ERR, VOID, NUM, BOOL, SYM, S_EXPR, Q_EXPR /* stops evaluation */, FUNC, MACRO }
 
     /** The type of this L-val */
     private Type type;
     /** The number stored by a num L-Val */
     private long num;
+    /** Boolean types store a boolean */
+    private boolean bool;
     /** ERR and SYM types store a string */
     private String err;
     private String sym;
@@ -47,8 +52,10 @@ public class LithpValue implements Iterable<LithpValue> {
         switch (type) {
             case VOID: return true;
             case SYM: return sym.equals(value.sym);
+            case BOOL: return bool == value.bool;
             case Q_EXPR:
             case S_EXPR:
+                if (lvals.size() != value.lvals.size()) return false;
                 for (int i = 0; i < getCount(); i++) {
                     if (!lvals.get(i).equals(value.lvals.get(i))) return false;
                 }
@@ -102,7 +109,7 @@ public class LithpValue implements Iterable<LithpValue> {
 
     @Override
     public Iterator<LithpValue> iterator() {
-        if (type != Type.S_EXPR) {
+        if (type != Type.S_EXPR && type != Type.Q_EXPR) {
             return new ArrayList<LithpValue>().iterator();
         }
         return lvals.iterator();
@@ -114,6 +121,7 @@ public class LithpValue implements Iterable<LithpValue> {
             case NUM: return String.valueOf(num);
             case VOID: return "#<void>";
             case SYM: return sym;
+            case BOOL: return bool ? "#t" : "#f";
             case S_EXPR: return exprString("(", ")");
             case Q_EXPR: return exprString("'(", ")");
             case FUNC:
@@ -194,6 +202,7 @@ public class LithpValue implements Iterable<LithpValue> {
             case VOID: break;
             case NUM: num = toCopy.num; break;
             case SYM: sym = toCopy.sym; break;
+            case BOOL: bool = toCopy.bool; break;
             case ERR: err = toCopy.err; break;
             case S_EXPR:
             case Q_EXPR:
@@ -209,6 +218,13 @@ public class LithpValue implements Iterable<LithpValue> {
         LithpValue v = new LithpValue();
         v.type = Type.NUM;
         v.num = n;
+        return v;
+    }
+    static LithpValue bool(boolean b) {
+        LithpValue v = new LithpValue();
+        v.type = Type.BOOL;
+        v.bool = b;
+        v.num = b ? 1 : 0;
         return v;
     }
     static LithpValue err(String e) {

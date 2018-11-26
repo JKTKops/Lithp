@@ -5,11 +5,16 @@ import ParserCombinator.ParseTree;
 import java.util.List;
 
 public class LithpEvaluator {
+    /** Stores all the builtin behaviors and values */
+    private LithpEnv builtinEnv;
+    /** The scratch environment for running code */
     private LithpEnv globalEnv;
 
     public LithpEvaluator() {
+        builtinEnv = new LithpEnv();
         globalEnv = new LithpEnv();
-        globalEnv.loadBuiltins(this);
+        builtinEnv.loadBuiltins(this);
+        globalEnv.setParent(builtinEnv);
     }
 
     public int eval(ParseTree AST) {
@@ -44,7 +49,6 @@ public class LithpEvaluator {
         }
 
         return builtinCall(env, function, value);
-        //return function.getBuiltinFunction().apply(env, value);
     }
 
     private LithpValue eval(LithpEnv env, LithpValue value) {
@@ -58,28 +62,33 @@ public class LithpEvaluator {
     }
 
     // builtin macros
-    LithpValue builtinLambda(LithpEnv creator, LithpValue args) {
-        if (args.getCount() != 2) {
-            return LithpValue.err("Function 'lambda' actual and formal argument lists differ in length.\n" +
-                    "Formal: 2, Actual: " + args.getCount());
+    LithpValue builtinIf(LithpEnv env, LithpValue args) {
+        if (args.getCount() != 3) {
+            return LithpValue.err("Function 'if' actual and formal argument lists differ in length.\n" +
+                    "Formal: 3, Actual: " + args.getCount() + ".");
         }
-        LithpValue formals = args.pop();
-        LithpValue body = args.pop();
-        if (formals.getType() != LithpValue.Type.S_EXPR && formals.getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'lambda' passed incorrect type for first argument.\n" +
-                    "Expected S-Expression or List, found " + typeName(formals) + ": " + formals + ".");
+        LithpValue cond = eval(env, args.pop());
+        if (cond.getType() == LithpValue.Type.ERR) return cond;
+        else {
+            LithpValue temp = LithpValue.sexpr();
+            temp.add(cond);
+            cond = builtinBool(temp);
         }
-        if (body.getType() != LithpValue.Type.S_EXPR && body.getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'lambda' passed incorrect type for second argument.\n" +
-                    "Expected S-Expression or List, found " + typeName(body) + ": " + body + ".");
+        LithpValue ifBody = args.pop();
+        if (ifBody.getType() != LithpValue.Type.S_EXPR && ifBody.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'if' passed incorrect type for second argument.\n" +
+                    "Expected S-Expression or List, found " + typeName(ifBody.getType()) + ": " + ifBody);
         }
-        for (LithpValue sym : formals) {
-            if (sym.getType() != LithpValue.Type.SYM) {
-                return LithpValue.err("Function 'lambda' first argument contains non-symbols.\n" +
-                        "Expected Symbol, found " + typeName(sym) + ": " + sym + ".");
-            }
+        ifBody.setType(LithpValue.Type.S_EXPR);
+        LithpValue elseBody = args.pop();
+        if (elseBody.getType() != LithpValue.Type.S_EXPR && elseBody.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'if' passed incorrect type for second argument.\n" +
+                    "Expected S-Expression or List, found " + typeName(elseBody.getType()) + ": " + elseBody);
         }
-        return LithpValue.lambda(creator, formals, body);
+        elseBody.setType(LithpValue.Type.S_EXPR);
+        LithpEnv evaluationEnv = new LithpEnv();
+        evaluationEnv.setParent(env);
+        return cond.equals(LithpValue.TRUE) ? evalSexpr(evaluationEnv, ifBody) : evalSexpr(evaluationEnv, elseBody);
     }
     LithpValue builtinDef(LithpEnv env, LithpValue args) {
         return builtinVar(env, args, "def");
@@ -149,6 +158,14 @@ public class LithpEvaluator {
                     "Formal: 2, Actual: " + (args.getCount() + 1) + ".");
         }
         LithpValue.Type listType = sym.getType();
+        if (listType == LithpValue.Type.S_EXPR) {
+            sym = eval(env, sym);
+            listType = sym.getType();
+            if (listType == LithpValue.Type.Q_EXPR && sym.getCount() == 1 && sym.get(0).getType() == LithpValue.Type.SYM) {
+                sym = sym.pop();
+                listType = LithpValue.Type.SYM;
+            }
+        }
         if (listType != LithpValue.Type.SYM) {
             return LithpValue.err("Function '"+func+"' passed incorrect type for first argument.\n" +
                     "Expected Symbol, found " + typeName(listType) + ": " + sym + ".");
@@ -177,6 +194,30 @@ public class LithpEvaluator {
         return LithpValue.exit();
     }
     // builtin functions
+    LithpValue builtinLambda(LithpEnv creator, LithpValue args) {
+        if (args.getCount() != 2) {
+            return LithpValue.err("Function 'lambda' actual and formal argument lists differ in length.\n" +
+                    "Formal: 2, Actual: " + args.getCount());
+        }
+        LithpValue formals = args.pop();
+        LithpValue body = args.pop();
+        if (formals.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'lambda' passed incorrect type for first argument.\n" +
+                    "Expected S-Expression or List, found " + typeName(formals) + ": " + formals + ".");
+        }
+        if (body.getType() != LithpValue.Type.Q_EXPR) {
+            return LithpValue.err("Function 'lambda' passed incorrect type for second argument.\n" +
+                    "Expected S-Expression or List, found " + typeName(body) + ": " + body + ".");
+        }
+        body.setType(LithpValue.Type.S_EXPR);
+        for (LithpValue sym : formals) {
+            if (sym.getType() != LithpValue.Type.SYM) {
+                return LithpValue.err("Function 'lambda' first argument contains non-symbols.\n" +
+                        "Expected Symbol, found " + typeName(sym) + ": " + sym + ".");
+            }
+        }
+        return LithpValue.lambda(creator, formals, body);
+    }
     private LithpValue builtinCall(LithpEnv env, LithpValue func, LithpValue args) {if (func.isBuiltin()) {
             return func.getBuiltinFunction().apply(env, args);
         }
@@ -187,20 +228,40 @@ public class LithpEvaluator {
             return eval(func.getEnv(), new LithpValue(func.getBody()));
         }
         func = new LithpValue(func); // copy now so we don't consume formals
+        LithpValue formals = func.getFormals();
         while (args.getCount() > 0) {
-            if (func.getFormals().getCount() <= 0) {
+            if (formals.getCount() <= 0) {
                 return LithpValue.err("A function's formal and actual argument lists differ in length.\n" +
                         "Formal: " + formal + ", Actual: " + actual + ".");
             }
-            func.getEnv().put(func.getFormals().pop(), args.pop());
+            LithpValue formalSym = formals.pop();
+            if (formalSym.getSym().equals("&")) {
+                if (formals.getCount() != 1) {
+                    return LithpValue.err("Can't bind function formals.\n" +
+                            "Symbol '&' not followed by exactly one Symbol.");
+                }
+                formalSym = formals.pop();
+                func.getEnv().put(formalSym, builtinList(args));
+                break;
+            }
+            func.getEnv().put(formalSym, args.pop());
         }
-        if (func.getFormals().getCount() == 0) {
+        if (formals.getCount() > 0 && formals.get(0).getSym().equals("&")) {
+            if (formals.getCount() != 2) {
+                return LithpValue.err("Can't bind function formals.\n" +
+                        "Symbol '&' not followed by exactly one Symbol.");
+            }
+            formals.pop();
+            func.getEnv().put(formals.pop(), LithpValue.qexpr());
+        }
+        if (formals.getCount() == 0) {
             func.getEnv().setParent(env);
             return eval(func.getEnv(), new LithpValue(func.getBody()));
         } else {
             return func;
         }
     }
+    // list functions
     LithpValue builtinLen(LithpValue arg) {
         //<editor-fold desc="Error checking">
         if (arg.getCount() != 1) {
@@ -221,7 +282,7 @@ public class LithpEvaluator {
             return LithpValue.err("Function 'head' actual and formal argument lists differ in length.\n" +
                     "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        LithpValue ret = arg.pop();
+        LithpValue ret = new LithpValue(arg).pop();
         if (ret.getType() != LithpValue.Type.Q_EXPR) {
             return LithpValue.err("Function 'head' passed incorrect type.\n" +
                     "Expected List, found " + typeName(ret) + ": " + ret + ".");
@@ -242,7 +303,7 @@ public class LithpEvaluator {
             return LithpValue.err("Function 'tail' actual and formal argument lists differ in length.\n" +
                     "Formal: 1, Actual: " + arg.getCount() + ".");
         }
-        LithpValue ret = arg.pop();
+        LithpValue ret = new LithpValue(arg.pop());
         if (ret.getType() != LithpValue.Type.Q_EXPR) {
             return LithpValue.err("Function 'tail' passed incorrect type.\n" +
                     "Expected List, found " + typeName(ret) + ": " + ret + ".");
@@ -291,9 +352,72 @@ public class LithpEvaluator {
         x.setType(LithpValue.Type.S_EXPR); // x = arg.pop() in the editor fold
         return eval(env, x);
     }
+    // order functions
+    private LithpValue builtinOrd(LithpValue args, String op) {
+        if (args.getCount() != 2) {
+            return LithpValue.err("Function '" + op + "' actual and formal argument lists differ in length.\n" +
+                    "Formal: 2, Actual: " + args.getCount());
+        }
+        if (op.equals("eq?")) return args.pop().equals(args.pop()) ? LithpValue.TRUE : LithpValue.FALSE;
+        LithpValue x = args.pop();
+        if (x.getType() != LithpValue.Type.NUM) {
+            return LithpValue.err("Function '" + op + "' passed incorrect type for first argument.\n" +
+                    "Excpected Number, found " + typeName(x.getType()) + ": " + x + ".");
+        }
+        LithpValue y = args.pop();
+        if (y.getType() != LithpValue.Type.NUM) {
+            return LithpValue.err("Function '" + op + "' passed incorrect type for second argument.\n" +
+                    "Excpected Number, found " + typeName(y.getType()) + ": " + y + ".");
+        }
+        LithpValue ret;
+        switch(op) {
+            case "<": ret = x.getNum() < y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            case ">": ret = x.getNum() > y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            case "<=": ret = x.getNum() <= y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            case ">=": ret = x.getNum() >= y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            case "==": ret = x.getNum() == y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            case "!=": ret = x.getNum() != y.getNum() ? LithpValue.TRUE : LithpValue.FALSE; break;
+            default: ret = LithpValue.FALSE;
+        }
+        return ret;
+    }
+    LithpValue builtinEqAny(LithpValue args) {
+        return builtinOrd(args, "eq?");
+    }
+    LithpValue builtinEq(LithpValue args) {
+        return builtinOrd(args, "==");
+    }
+    LithpValue builtinNeq(LithpValue args) {
+        return builtinOrd(args, "!=");
+    }
+    LithpValue builtinLe(LithpValue args) {
+        return builtinOrd(args, "<");
+    }
+    LithpValue builtinLeq(LithpValue args) {
+        return builtinOrd(args, "<=");
+    }
+    LithpValue builtinGe(LithpValue args) {
+        return builtinOrd(args, ">");
+    }
+    LithpValue builtinGeq(LithpValue args) {
+        return builtinOrd(args, ">-");
+    }
+    LithpValue builtinBool(LithpValue arg) {
+        if (arg.getCount() != 1) {
+            return LithpValue.err("Function 'bool' actual and formal argument lists differ in length.\n" +
+                    "Formal: 1, Actual: " + arg.getCount() + ".");
+        }
+        LithpValue x = arg.pop();
+        if (x.equals(LithpValue.FALSE) || x.equals(LithpValue.NIL) || x.equals(LithpValue.sexpr()) || (x.getType() == LithpValue.Type.NUM && x.getNum() == 0)) {
+            return LithpValue.FALSE;
+        }
+        return LithpValue.TRUE;
+    }
+    // math functions
     private LithpValue builtinOp(LithpValue args, String op) {
         for (LithpValue arg : args) {
-            if (arg.getType() != LithpValue.Type.NUM) return LithpValue.err(args.toString() + " contains a non-number.");
+            if (arg.getType() != LithpValue.Type.NUM
+                && arg.getType() != LithpValue.Type.BOOL) return LithpValue.err(args.toString() + " contains a non-number."); // #t = 1, #f = 0
         }
         LithpValue x = new LithpValue(args.pop());
         if (op.equals("-") && args.getCount() == 0) {
