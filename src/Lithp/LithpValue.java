@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 public class LithpValue implements Iterable<LithpValue> {
+    final static LithpValue VOID = LithpValue.voidValue();
+
     enum Type { ERR, VOID, NUM, SYM, S_EXPR, Q_EXPR /* stops evaluation */, FUNC, MACRO }
 
     /** The type of this L-val */
@@ -19,8 +21,13 @@ public class LithpValue implements Iterable<LithpValue> {
     private String sym;
     /** S_EXPR types store a list of L-Vals */
     private List<LithpValue> lvals;
-    /** FUNC types store a (LithpEnv, LithpValue) -> LithpValue function */
-    private BiFunction<LithpEnv, LithpValue, LithpValue> function;
+    /** builtin FUNC and MACRO types store a (LithpEnv, LithpValue) -> LithpValue function */
+    private BiFunction<LithpEnv, LithpValue, LithpValue> builtinFunction;
+    private boolean builtin;
+    /** User-defined functions store a creation environment, calling environment, formal argument list, and code body */
+    private LithpEnv env;
+    private LithpValue formals;
+    private LithpValue body;
 
     void add(LithpValue toAdd) {
         if (!(type == Type.S_EXPR || type == Type.Q_EXPR)) { return; }
@@ -32,12 +39,38 @@ public class LithpValue implements Iterable<LithpValue> {
         }
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof LithpValue)) return false;
+        LithpValue value = (LithpValue) obj;
+        if (type != value.type) return false;
+        switch (type) {
+            case VOID: return true;
+            case SYM: return sym.equals(value.sym);
+            case Q_EXPR:
+            case S_EXPR:
+                for (int i = 0; i < getCount(); i++) {
+                    if (!lvals.get(i).equals(value.lvals.get(i))) return false;
+                }
+                return true;
+            case ERR: return err.equals(value.err);
+            case NUM: return num == value.num;
+            case FUNC:
+            case MACRO:
+                if (builtin != value.builtin) return false;
+                if (builtin) {
+                    return sym.equals(value.sym);
+                } else {
+                    return env.equals(value.env) && formals.equals(value.formals) && body.equals(value.body);
+                }
+                default: return false;
+        }
+    }
+
     static LithpValue read(ParseTree.Node node) {
         switch (node.getValue()) {
             case "number":
                 return readNum(node.getChild());
-            case "void":
-                return LithpValue.voidValue();
             case "symbol":
                 return LithpValue.sym(node.getDeepValue(1));
             case "expr":
@@ -51,10 +84,11 @@ public class LithpValue implements Iterable<LithpValue> {
             case "qexpr":
                 ret = LithpValue.qexpr();
                 break;
-            default: ret = LithpValue.qexpr(); break; // shouldn't happen.
+            default: ret = VOID; break; // Happens when attempting to read an empty s-expression
         }
         for (ParseTree.Node child : node) {
-            ret.add(read(child));
+            LithpValue toAdd = read(child);
+            if (toAdd.getType() != Type.VOID) ret.add(toAdd);
         }
         return ret;
     }
@@ -82,8 +116,9 @@ public class LithpValue implements Iterable<LithpValue> {
             case SYM: return sym;
             case S_EXPR: return exprString("(", ")");
             case Q_EXPR: return exprString("'(", ")");
-            case FUNC: return "<function>: " + sym;
-            case MACRO: return "<function>: " + sym; // not sure if this one can happen without evaluating the macro
+            case FUNC:
+                return (builtin ? "<builtinFunction>: " : "<Function>: ") + ((sym != null) ? sym : "<lambda>");
+            case MACRO: return "<builtinFunction>: " + sym;
             case ERR: return "Error: " + err;
         }
         return "Untyped Lithp Value";
@@ -125,18 +160,36 @@ public class LithpValue implements Iterable<LithpValue> {
     List<LithpValue> getCells() {
         return lvals;
     }
-    BiFunction<LithpEnv, LithpValue, LithpValue> getFunction() {
-        return function;
+    LithpValue get(int i) {
+        return lvals.get(i);
+    }
+    BiFunction<LithpEnv, LithpValue, LithpValue> getBuiltinFunction() {
+        return builtinFunction;
+    }
+    boolean isBuiltin() {
+        return builtin;
+    }
+    LithpEnv getEnv() {
+        return env;
+    }
+    LithpValue getFormals() {
+        return formals;
+    }
+    LithpValue getBody() {
+        return body;
     }
 
     private LithpValue() {}
-    private LithpValue(LithpValue toCopy) {
+    LithpValue(LithpValue toCopy) {
         type = toCopy.type;
         switch(type) {
             case FUNC:
             case MACRO:
                 sym = toCopy.sym;
-                function = toCopy.function;
+                builtinFunction = toCopy.builtinFunction;
+                env = new LithpEnv(toCopy.env);
+                formals = new LithpValue(toCopy.formals);
+                body = new LithpValue(toCopy.body);
                 break;
             case VOID: break;
             case NUM: num = toCopy.num; break;
@@ -191,14 +244,25 @@ public class LithpValue implements Iterable<LithpValue> {
         LithpValue v = new LithpValue();
         v.type = Type.FUNC;
         v.sym = symbol;
-        v.function = func;
+        v.builtinFunction = func;
+        v.builtin = true;
+        return v;
+    }
+    static LithpValue lambda(LithpEnv creator, LithpValue formalArgs, LithpValue codeBody) {
+        LithpValue v = new LithpValue();
+        v.type = Type.FUNC;
+        v.builtin = false;
+        v.env = new LithpEnv(creator);
+        v.formals = formalArgs;
+        v.body =  codeBody;
         return v;
     }
     static LithpValue macro(String symbol, BiFunction<LithpEnv, LithpValue, LithpValue> func) {
         LithpValue v = new LithpValue();
         v.type = Type.MACRO;
         v.sym = symbol;
-        v.function = func;
+        v.builtinFunction = func;
+        v.builtin = true;
         return v;
     }
     static LithpValue exit() {

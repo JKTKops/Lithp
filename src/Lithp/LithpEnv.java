@@ -5,19 +5,45 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 class LithpEnv {
+    private LithpEnv parent;
     private Map<String, LithpValue> vars;
 
     LithpEnv() {
         vars = new HashMap<>();
     }
+    LithpEnv(LithpEnv e) {
+        parent = e.parent;
+        vars = new HashMap<>(e.vars);
+    }
+
+    void setParent(LithpEnv e) {
+        parent = e;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof LithpEnv)) return false;
+        LithpEnv env = (LithpEnv) obj;
+        return (parent.equals(env.parent)) && (vars.equals(env.vars));
+    }
 
     LithpValue get(LithpValue key) {
         LithpValue ret = vars.get(key.getSym());
-        return ret != null ? ret : LithpValue.err("Unbound Symbol: " + key.getSym());
+        if (ret != null) return ret;
+        else if (parent != null) return parent.get(key);
+        else return LithpValue.err("Unbound Symbol: " + key.getSym() + ".");
     }
 
     void put(LithpValue key, LithpValue value) {
         vars.put(key.getSym(), value);
+    }
+
+    void def(LithpValue key, LithpValue value) {
+        LithpEnv current = this;
+        while (current.parent != null) {
+            current = current.parent;
+        }
+        current.put(key, value);
     }
 
     boolean contains(LithpValue key) {
@@ -37,7 +63,11 @@ class LithpEnv {
 
         /* Builtin macros */
         addBuiltinMacro("def", evaluator::builtinDef);
+        addBuiltinMacro("let", evaluator::builtinLet);
         addBuiltinMacro("def-values", evaluator::builtinDefValues);
+        addBuiltinMacro("let-values", evaluator::builtinLetValues);
+        addBuiltinMacro("lambda", evaluator::builtinLambda);
+        addBuiltinMacro("quote", (env, arg) -> evaluator.builtinQuote(arg));
         // exit function
         addBuiltinMacro("exit", (env, arg) -> evaluator.builtinExit());
 
@@ -48,7 +78,6 @@ class LithpEnv {
         addBuiltin("len", (env, arg) -> evaluator.builtinLen(arg));
         addBuiltin("eval", evaluator::builtinEval);
         addBuiltin("join", (env, args) -> evaluator.builtinJoin(args));
-        addBuiltinMacro("quote", (env, arg) -> evaluator.builtinQuote(arg));
 
         /* Math functions */
         addBuiltin("+", (env, args) -> evaluator.builtinAdd(args));
