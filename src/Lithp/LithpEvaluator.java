@@ -5,13 +5,12 @@ import ParserCombinator.ParseTree;
 import java.util.List;
 
 public class LithpEvaluator {
-    /** Stores all the builtin behaviors and values */
-    private LithpEnv builtinEnv;
     /** The scratch environment for running code */
     private LithpEnv globalEnv;
 
     public LithpEvaluator() {
-        builtinEnv = new LithpEnv();
+        /* Stores all the builtin behaviors and values */
+        LithpEnv builtinEnv = new LithpEnv();
         globalEnv = new LithpEnv();
         builtinEnv.loadBuiltins(this);
         globalEnv.setParent(builtinEnv);
@@ -75,32 +74,27 @@ public class LithpEvaluator {
             cond = builtinBool(temp);
         }
         LithpValue ifBody = args.pop();
-        if (ifBody.getType() != LithpValue.Type.S_EXPR && ifBody.getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'if' passed incorrect type for second argument.\n" +
-                    "Expected S-Expression or List, found " + typeName(ifBody.getType()) + ": " + ifBody);
-        }
-        ifBody.setType(LithpValue.Type.S_EXPR);
         LithpValue elseBody = args.pop();
-        if (elseBody.getType() != LithpValue.Type.S_EXPR && elseBody.getType() != LithpValue.Type.Q_EXPR) {
-            return LithpValue.err("Function 'if' passed incorrect type for second argument.\n" +
-                    "Expected S-Expression or List, found " + typeName(elseBody.getType()) + ": " + elseBody);
-        }
-        elseBody.setType(LithpValue.Type.S_EXPR);
         LithpEnv evaluationEnv = new LithpEnv();
         evaluationEnv.setParent(env);
-        return cond.equals(LithpValue.TRUE) ? evalSexpr(evaluationEnv, ifBody) : evalSexpr(evaluationEnv, elseBody);
+        return cond.equals(LithpValue.TRUE) ? eval(evaluationEnv, ifBody) : eval(evaluationEnv, elseBody);
     }
     LithpValue builtinDef(LithpEnv env, LithpValue args) {
         return builtinVar(env, args, "def");
     }
+    // TODO: let forms should evaluate their expr in a local environment
     LithpValue builtinLet(LithpEnv env, LithpValue args) {
-        return builtinVar(env, args, "let");
+        LithpValue expr = args.pop(args.getCount() - 1);
+        builtinVar(env, args, "let");
+        return eval(env, expr);
     }
     LithpValue builtinDefValues(LithpEnv env, LithpValue args) {
         return builtinVarValues(env, args, "def-values");
     }
     LithpValue builtinLetValues(LithpEnv env, LithpValue args) {
-        return builtinVarValues(env, args, "let-values");
+        LithpValue expr = args.pop(args.getCount() - 1);
+        builtinVarValues(env, args, "let-values");
+        return eval(env, expr);
     }
     private LithpValue builtinVarValues(LithpEnv env, LithpValue args, String func) {
         if (args.getCount() == 0) {

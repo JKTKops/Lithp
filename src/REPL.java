@@ -15,22 +15,23 @@ public class REPL {
                 "<number> ::= /-?[0-9]+/\n" +
                         "<symbol> ::= /[a-zA-Z0-9_+\\-*\\/\\\\=<>?~!@#$%^&|]+/\n" +
                         "<ws>i ::= /\\s/*\n" +
-                        "<expr> ::= <number> <ws> | <symbol> <ws> | <sexpr> <ws> | <qexpr> <ws>\n" +
+                        "<comment>i ::= /;.*?\\n/\n" +
+                        "<expr> ::= <number> <ws> | <symbol> <ws> | <comment>* <sexpr> <ws> | <qexpr> <ws>\n" +
                         "<sexpr> ::= '('i <ws> <expr>* ')'i\n" +
                         "<qexpr> ::= \"'(\"i <ws> <expr>* ')'i\n" +
                         "<lithp> ::= <expr>");
         String code;
         Scanner in = new Scanner(System.in);
 
-        System.out.println("Lithp version 0.2.2.0\nUse (exit) to exit.");
+        System.out.println("Lithp version 0.2.0.1\nUse (exit) to exit.");
 
         while(true) {
-            System.out.print("Lithp>");
+            System.out.print("Lithp> ");
 
             code = in.nextLine();
             int missingParens;
             while ((missingParens = missingParens(code)) > 0) {
-                System.out.print(">>>...");
+                System.out.print(">>>... ");
                 String more = in.nextLine();
                 if (more.length() == 0) {
                     while(missingParens > 0) {
@@ -46,7 +47,11 @@ public class REPL {
                 System.out.println("Couldn't parse that input: " + parseTree.toString().substring(2));
                 continue;
             }
-            if (evaluator.eval(parseTree) < 0) break;
+            try {
+                if (evaluator.eval(parseTree) < 0) break;
+            } catch (Exception e) {
+                System.out.println("An error occured:\n" + e);
+            }
         }
     }
 
