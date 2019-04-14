@@ -49,7 +49,7 @@ public class REPL {
             }
             try {
                 if (evaluator.eval(parseTree) < 0) break;
-            } catch (Exception e) {
+            } catch (StackOverflowError e) {
                 System.out.println("An error occured:\n" + e);
             }
         }

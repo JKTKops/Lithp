@@ -61,7 +61,7 @@
 (function '(map f l)
   '(if l
     (join
-      (list (f (head-elem l)))
+      (list (f (head-elem l)))(
       (map f (tail l)))
     '()))
 ; filters a list according to a given predicate

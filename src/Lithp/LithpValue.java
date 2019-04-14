@@ -5,6 +5,7 @@ import ParserCombinator.ParseTree;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 
 public class LithpValue implements Iterable<LithpValue> {
@@ -212,6 +213,11 @@ public class LithpValue implements Iterable<LithpValue> {
                 }
                 break;
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, num, bool, err, sym, lvals, builtinFunction, builtin, env, formals, body);
     }
 
     static LithpValue num(long n) {

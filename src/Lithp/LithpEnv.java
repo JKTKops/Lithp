@@ -58,7 +58,7 @@ class LithpEnv {
     }
 
     void loadBuiltins(LithpEvaluator evaluator) {
-        /* builtin values */
+        /* builtin values for convenience*/
         vars.put("nil", LithpValue.NIL);
         vars.put("#t", LithpValue.TRUE);
         vars.put("#f", LithpValue.FALSE);

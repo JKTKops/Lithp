@@ -254,7 +254,7 @@ abstract class Combinators {
      * @param c The character the output Parser should match.
      * @return A Parser that matches only the given character.
      */
-    static Parser accept(char c) {
+    private static Parser accept(char c) {
         return new Parser(stream -> {
             if (stream.length() == 0) {
                 return new Failure(Symbol.value("unexpected EOF"), stream);
